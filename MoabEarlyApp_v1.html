@@ -109,6 +109,22 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* 4-char voice-friendly deal code (aa11 etc.) — appended to the deal name
+     in muted grey so it's visible but not visually loud. Monospace + slight
+     letter-spacing makes it scannable. */
+  .deal-code {
+    color: rgba(255,255,255,0.55);
+    font-weight: 500;
+    font-size: 11px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    letter-spacing: 0.6px;
+    margin-left: 8px;
+    text-transform: uppercase;
+  }
+  /* When .deal-code appears outside the topbar (deal browser, modals) it
+     uses the page text colour. Override only the topbar specifically above. */
+  .deal-name + .deal-code,
+  #mobileDealName .deal-code { color: rgba(255,255,255,0.55); }
   .topbar .actions {
     display: flex;
     gap: 6px;
@@ -845,6 +861,46 @@
     font-size: 12px;
     min-width: 280px;
   }
+  /* Property-address input with inline Maps + Zillow launchers on the right.
+     Buttons live INSIDE the input visually — input padding-right reserves
+     room for them, then they're absolute-positioned over that gutter. */
+  .input-with-actions {
+    position: relative;
+    display: block;
+    width: 100%;
+  }
+  .input-with-actions > input {
+    width: 100%;
+    padding-right: 76px;   /* room for two ~32px buttons + gap */
+    box-sizing: border-box;
+  }
+  .input-with-actions .field-action {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 26px;
+    min-width: 32px;
+    padding: 0 6px;
+    background: #FFF;
+    border: 1px solid var(--gray-border);
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--navy);
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .input-with-actions .field-action:hover { background: var(--blue-hover); }
+  .input-with-actions .field-action.disabled {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+  .input-with-actions .field-action.maps   { right: 38px; }
+  .input-with-actions .field-action.zillow { right: 4px; }
   .autocomplete-dropdown .item {
     padding: 7px 10px;
     border-bottom: 1px solid var(--gray-border);
@@ -2424,9 +2480,11 @@ function newDealFromTemplate(t) {
   s.meta         = JSON.parse(JSON.stringify(t.meta || {noi_projection_years: 10, autocomplete_provider: "nominatim", google_places_api_key: ""}));
   s.group_totals = JSON.parse(JSON.stringify(t.group_totals || {}));
   s.deal_id      = uuid();
+  s.deal_code    = null;     // force fresh assignment via ensureDealCode below
   s.created_at   = todayISO();
   s.last_edited_date = todayISO();
   s.template_used = t.template_id;
+  ensureDealCode(s);          // mint code now so it's visible immediately
   return s;
 }
 
@@ -2458,6 +2516,7 @@ async function seedMoabEarlyV1IfFirstRun() {
   realState.deal_id = uuid();
   realState.created_at = "2026-04-26T00:00:00.000Z";
   realState.last_edited_date = "2026-04-26T00:00:00.000Z";
+  ensureDealCode(realState);    // First deal ever → "aa11"
 
   const v = {
     version_id: uuid(),
@@ -2525,6 +2584,73 @@ async function saveVersion() {
   if (activeTab === "versions") renderActiveTab();
 }
 
+// ----- DEAL CODE (4-char voice-friendly ID) -----
+// Format: <letter><letter><digit><digit>, e.g. "aa11".
+// Sequence: aa11..aa99 (89 codes) → ab11..ab99 → ... → az99 → ba11 → ... → zz99.
+// Counter persists in localStorage. Mapping (deal_id → code) also persists so
+// reloading old versions keeps the same code. Numbers start at 11 (not 00/01)
+// so voice-to-text always picks up two clearly-spoken digits.
+const DEAL_CODE_NUM_RANGE = 89;   // 11..99 inclusive
+function indexToDealCode(idx) {
+  if (idx < 0) idx = 0;
+  const total = 26 * 26 * DEAL_CODE_NUM_RANGE;
+  idx = idx % total;
+  const numIdx  = idx % DEAL_CODE_NUM_RANGE;       // 0..88
+  const pairIdx = Math.floor(idx / DEAL_CODE_NUM_RANGE);  // 0..675
+  const l2 = pairIdx % 26;
+  const l1 = Math.floor(pairIdx / 26) % 26;
+  return String.fromCharCode(97 + l1) +
+         String.fromCharCode(97 + l2) +
+         String(numIdx + 11);
+}
+function _getDealCodeMap() {
+  try { return JSON.parse(localStorage.getItem("moab_deal_code_map") || "{}"); }
+  catch (e) { return {}; }
+}
+function _setDealCodeMap(m) {
+  try { localStorage.setItem("moab_deal_code_map", JSON.stringify(m)); }
+  catch (e) {}
+}
+function _nextDealCodeIdx() {
+  const cur = parseInt(localStorage.getItem("moab_next_deal_code_idx") || "0", 10) || 0;
+  try { localStorage.setItem("moab_next_deal_code_idx", String(cur + 1)); }
+  catch (e) {}
+  return cur;
+}
+// Ensure a deal_code is set on the given state (defaults to global state).
+// Returns the code. Idempotent — same deal_id always gets the same code via
+// the persisted map.
+function ensureDealCode(s) {
+  const t = s || state;
+  if (!t) return null;
+  if (t.deal_code && /^[a-z]{2}\d{2}$/.test(t.deal_code)) {
+    // Make sure the map has it too (in case of cross-device restore)
+    if (t.deal_id) {
+      const map = _getDealCodeMap();
+      if (map[t.deal_id] !== t.deal_code) {
+        map[t.deal_id] = t.deal_code;
+        _setDealCodeMap(map);
+      }
+    }
+    return t.deal_code;
+  }
+  if (t.deal_id) {
+    const map = _getDealCodeMap();
+    if (map[t.deal_id]) {
+      t.deal_code = map[t.deal_id];
+      return t.deal_code;
+    }
+  }
+  const code = indexToDealCode(_nextDealCodeIdx());
+  t.deal_code = code;
+  if (t.deal_id) {
+    const map = _getDealCodeMap();
+    map[t.deal_id] = code;
+    _setDealCodeMap(map);
+  }
+  return code;
+}
+
 // ----- NEW VARIANT (forking save) -----
 // Bump a deal name by promoting (or appending) a "v<N>" suffix.
 //   "Moab Early v1"     -> "Moab Early v2"
@@ -2569,14 +2695,17 @@ async function saveAsNewVariant() {
   };
   await dbPut("versions", oldVersion);
 
-  // Step 2 — fork: new deal identity, bumped name, fresh creation timestamp.
+  // Step 2 — fork: new deal identity, bumped name, fresh creation timestamp,
+  // fresh deal_code (next in the global aa11→zz99 sequence).
   const newName = bumpVariantName(oldName);
   state.deal_id          = uuid();
   state.deal_name        = newName;
+  state.deal_code        = null;          // null forces ensureDealCode to mint
   state.last_version_id  = null;
   state.last_saved_at    = null;
   state.created_at       = todayISO();
   state.last_edited_date = todayISO();
+  ensureDealCode(state);                  // assign next code, e.g. "aa12"
 
   // Step 3 — first save under the new variant.
   const newVersion = {
@@ -2655,6 +2784,7 @@ async function loadVersion(versionId) {
     }
   });
   migrateGroupTotals(state);
+  ensureDealCode(state);                  // older versions may lack a deal_code
   state.last_version_id = v.version_id;
   recompute();
   undoStack = [];
@@ -2800,13 +2930,24 @@ function renderChartsInto(targetEl) {
 }
 
 function refreshDealName() {
-  // Title format per user request: just the deal name (which already includes
-  // "Moab Early — 805 N Main"). Don't append city/state/zip.
+  // Title format per user request: deal name + grey 4-char code (aa11 etc.).
+  // Code is rendered as a child <span class="deal-code"> so we can style it
+  // separately without HTML-escaping the deal name.
   const text = state.deal_name || "(unnamed deal)";
+  const code = state.deal_code || "";
   const desktopEl = document.getElementById("dealNameDisplay");
   const mobileEl  = document.getElementById("mobileDealName");
-  if (desktopEl) desktopEl.textContent = text;
-  if (mobileEl)  mobileEl.textContent  = text;
+  [desktopEl, mobileEl].forEach(host => {
+    if (!host) return;
+    host.innerHTML = "";
+    host.appendChild(document.createTextNode(text));
+    if (code) {
+      const codeSpan = document.createElement("span");
+      codeSpan.className = "deal-code";
+      codeSpan.textContent = code;
+      host.appendChild(codeSpan);
+    }
+  });
 }
 
 // ----- SUMMARY -----
@@ -2955,6 +3096,43 @@ function buildInputControl(key, f) {
     input.value = v == null ? "" : String(v);
   }
   input.addEventListener("change", () => setField(key, input.value));
+
+  // Property address gets two inline launcher buttons: Maps + Zillow. Each
+  // opens the current address in a new tab. Buttons stay disabled-looking
+  // (greyed) when the field is empty so the user knows they need to fill it.
+  if (key === "property_address_full") {
+    const wrap = el("div", {className: "input-with-actions"});
+    wrap.appendChild(input);
+    const updateLinks = () => {
+      const addr = (input.value || "").trim();
+      const enc  = encodeURIComponent(addr);
+      const empty = addr.length === 0;
+      mapsA.href   = empty ? "#" : "https://www.google.com/maps/search/?api=1&query=" + enc;
+      zillowA.href = empty ? "#" : "https://www.zillow.com/homes/" + enc + "_rb/";
+      mapsA.classList.toggle("disabled", empty);
+      zillowA.classList.toggle("disabled", empty);
+    };
+    const mapsA = el("a", {
+      className: "field-action maps",
+      target: "_blank",
+      rel: "noopener noreferrer",
+      title: "Open this address in Google Maps",
+    }, "Maps");
+    const zillowA = el("a", {
+      className: "field-action zillow",
+      target: "_blank",
+      rel: "noopener noreferrer",
+      title: "Open this address on Zillow",
+    }, "Zillow");
+    wrap.appendChild(mapsA);
+    wrap.appendChild(zillowA);
+    // Refresh hrefs on every keystroke so the buttons always target the
+    // address shown right now (including before the user blurs out).
+    input.addEventListener("input", updateLinks);
+    input.addEventListener("change", updateLinks);
+    updateLinks();
+    return wrap;
+  }
   return input;
 }
 
@@ -4003,7 +4181,20 @@ async function renderVersions() {
       document.getElementById("selCount").textContent = cnt + " selected";
     });
     tr.appendChild(el("td", null, cb));
-    tr.appendChild(el("td", {className: "label"}, (v.state && v.state.deal_name) || v.deal_short_name || "Untitled"));
+    // Deal name + grey code (matches topbar treatment so the user sees the
+    // same identifier wherever the deal appears).
+    const nameTd = el("td", {className: "label"});
+    nameTd.appendChild(document.createTextNode(
+      (v.state && v.state.deal_name) || v.deal_short_name || "Untitled"
+    ));
+    if (v.state && v.state.deal_code) {
+      const codeSpan = document.createElement("span");
+      codeSpan.className = "deal-code";
+      codeSpan.style.color = "var(--gray-label)";   // override topbar white
+      codeSpan.textContent = v.state.deal_code;
+      nameTd.appendChild(codeSpan);
+    }
+    tr.appendChild(nameTd);
     tr.appendChild(el("td", null, v.version_id.slice(0, 12)));
     tr.appendChild(el("td", null, (v.saved_at || "").slice(0, 16).replace("T", " ")));
     tr.appendChild(el("td", null, (v.state && v.state.created_at || "").slice(0, 10)));
@@ -4084,7 +4275,13 @@ async function openCompareModal() {
   const tbl = el("table", {className: "grid"});
   const thead = el("thead");
   const thr = el("tr", null, [el("th", null, "Field")]);
-  sel.forEach(v => thr.appendChild(el("th", null, ((v.state && v.state.deal_name) || v.deal_short_name || "Untitled") + " · " + v.version_id.slice(0, 8))));
+  sel.forEach(v => {
+    const code = (v.state && v.state.deal_code) ? " " + v.state.deal_code : "";
+    thr.appendChild(el("th", null,
+      ((v.state && v.state.deal_name) || v.deal_short_name || "Untitled") +
+      code + " · " + v.version_id.slice(0, 8)
+    ));
+  });
   thead.appendChild(thr);
   tbl.appendChild(thead);
   const tbody = el("tbody");
@@ -4944,6 +5141,26 @@ async function init() {
   if (!state.deal_id) state.deal_id = uuid();
   if (!state.created_at) state.created_at = todayISO();
   if (!state.last_edited_date) state.last_edited_date = todayISO();
+  // Backfill deal_code (4-char voice-friendly ID) — idempotent, looks up via
+  // localStorage map so the same deal_id always recovers the same code.
+  ensureDealCode(state);
+  // One-shot pass over saved versions: stamp a deal_code on any pre-existing
+  // version that lacks one. Versions sharing a deal_id all get the same code
+  // via the persisted map, so this stays stable if run multiple times.
+  try {
+    const allVersions = await dbAll("versions");
+    let touched = 0;
+    for (const v of allVersions) {
+      if (!v.state) continue;
+      if (v.state.deal_code && /^[a-z]{2}\d{2}$/.test(v.state.deal_code)) continue;
+      ensureDealCode(v.state);
+      await dbPut("versions", v);
+      touched++;
+    }
+    if (touched > 0) console.info(`deal_code backfill: stamped ${touched} legacy version(s)`);
+  } catch (e) {
+    console.warn("deal_code backfill skipped:", e);
+  }
 
   phase = "computing";
   setSub("Computing the model…");
