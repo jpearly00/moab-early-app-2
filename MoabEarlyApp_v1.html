@@ -931,6 +931,36 @@
     font-size: 12px;
     min-width: 280px;
   }
+  /* Property-address row — taller so the 2-line textarea (street + city/
+     state/zip) fits without truncation. Targets BOTH the label cell and
+     the value cell of the row that contains the property_address_full
+     textarea. Uses CSS :has() — supported on all modern Safari/Chrome. */
+  section[data-tab="inputs"] .kv .kv-label:has(+ .kv-value textarea[data-field="property_address_full"]),
+  section[data-tab="inputs"] .kv .kv-value:has(textarea[data-field="property_address_full"]) {
+    min-height: 76px;            /* roughly 2× the 48px default */
+    padding-top: 10px;
+    padding-bottom: 10px;
+    align-items: flex-start;     /* label sits at top so favicons line up with line 1 */
+  }
+  section[data-tab="inputs"] textarea[data-field="property_address_full"] {
+    width: 100%;
+    height: 56px;
+    line-height: 1.4;
+    font-size: 15px;
+    text-align: right;
+    resize: none;
+    border: 1px solid var(--gray-border);
+    border-radius: 3px;
+    padding: 6px 8px;
+    background: #fff9c4;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+  section[data-tab="inputs"] textarea[data-field="property_address_full"]:focus {
+    outline: 2px solid var(--navy);
+    outline-offset: -1px;
+  }
+
   /* Property-address favicon launchers — pinned to the right edge of the
      white LABEL cell (NOT inside the yellow input). Two square buttons
      side-by-side with the actual brand favicons. .kv-label is already
@@ -3267,6 +3297,20 @@ function buildInputControl(key, f) {
     sel.addEventListener("change", () => setField(key, sel.value === "true"));
     return sel;
   }
+  // Property address: 2-line textarea.
+  // Storage stays a single comma-separated string so xlsx/Nominatim/Maps/
+  // Zillow round-trips don't break — the newline is purely a display/edit
+  // affordance. We split on the FIRST ", " for the visual line break
+  // (street on top, "City, State Zip" below) and re-join on commit.
+  if (key === "property_address_full") {
+    const ta = el("textarea", {rows: 2});
+    ta.dataset.field = key;
+    ta.value = formatAddressForEdit(v == null ? "" : String(v));
+    ta.spellcheck = false;
+    ta.addEventListener("change", () => setField(key, normalizeAddressFromEdit(ta.value)));
+    return ta;
+  }
+
   // number / string
   const input = el("input", {type: f.type === "number" ? "number" : "text"});
   input.dataset.field = key;
@@ -3279,11 +3323,23 @@ function buildInputControl(key, f) {
     input.value = v == null ? "" : String(v);
   }
   input.addEventListener("change", () => setField(key, input.value));
-
-  // (Maps + Zillow launchers used to live inside the property-address input
-  // wrapper. Per user request 260427-2200, they were moved OUT of the yellow
-  // input cell and into the LABEL cell — see renderInputs for that markup.)
   return input;
+}
+
+// Visual: "805 N Main St, Moab, UT 84532" -> "805 N Main St\nMoab, UT 84532".
+// Storage form stays comma-separated; this only affects what the user sees
+// while editing the textarea. Splits at the FIRST ", " so the city/state/zip
+// bundle stays together on line 2 (US addresses are STREET, CITY, STATE_ZIP).
+function formatAddressForEdit(addr) {
+  if (!addr) return "";
+  const i = addr.indexOf(", ");
+  if (i < 0) return addr;
+  return addr.slice(0, i) + "\n" + addr.slice(i + 2);
+}
+function normalizeAddressFromEdit(val) {
+  if (!val) return "";
+  // Collapse any newlines/CRs back to ", " and squeeze accidental double-comma.
+  return val.replace(/\s*\r?\n+\s*/g, ", ").replace(/, ,/g, ",").trim();
 }
 
 // ============================================================
@@ -3419,7 +3475,10 @@ function attachAddressAutocomplete(input) {
 
 function bindAddressAutocompleteForActiveTab() {
   if (activeTab !== "inputs") return;
-  const input = document.querySelector('section[data-tab="inputs"] input[data-field="property_address_full"]');
+  // Field is now a <textarea> (2-line). Selector matches both for safety.
+  const input = document.querySelector(
+    'section[data-tab="inputs"] [data-field="property_address_full"]'
+  );
   if (input) attachAddressAutocomplete(input);
 }
 
