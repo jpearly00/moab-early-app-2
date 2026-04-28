@@ -225,28 +225,39 @@
     -webkit-overflow-scrolling: touch;
   }
   /* NOI — Year column sticky-left so user can scroll metrics right while
-     keeping the year visible (same trick as Investor Team Name column). */
+     keeping the year visible. table-layout:fixed forces explicit widths
+     to actually hold (auto-layout ignores them under min-width pressure). */
+  .noi-table { table-layout: fixed; min-width: 600px; }
   .noi-table th:first-child,
   .noi-table td:first-child {
     position: sticky;
     left: 0;
     z-index: 2;
     background: var(--gray-zebra);
-    min-width: 56px;
-    max-width: 56px;
-    width: 56px;
+    min-width: 28px;
+    max-width: 28px;
+    width: 28px;
+    padding: 3px 2px;
+    font-size: 11px;
     text-align: center;
     font-weight: 600;
+  }
+  .noi-table th:not(:first-child),
+  .noi-table td:not(:first-child) {
+    /* Compact metric columns — content fits with ellipsis-free padding */
+    padding: 3px 4px;
+    font-size: 11px;
   }
   .noi-table thead th:first-child {
     background: var(--navy);
     color: #FFF;
   }
-  /* Investor Team — Name column sticky on ALL viewports (was mobile-only) */
+  /* Investor Team — Name column sticky on ALL viewports (was mobile-only).
+     Sits right after the # column (now 20px wide). */
   .team-table th:nth-child(2),
   .team-table td:nth-child(2) {
     position: sticky;
-    left: 22px;       /* sits right after the # column (width 22px) */
+    left: 20px;
     z-index: 2;
     background: var(--gray-zebra);
   }
@@ -499,14 +510,19 @@
   }
 
   /* ---------- INVESTOR TEAM ---------- */
+  /* table-layout:fixed — without this, auto-layout ignores cell max-widths
+     once .team-table min-width (640px on mobile) forces a stretch, and the
+     # column balloons. Fixed layout honors the explicit per-column widths
+     below. Total below sums to ~480px which fits any phone. */
+  .team-table { table-layout: fixed; }
   .team-table th, .team-table td { vertical-align: middle; }
-  /* # column — minimum width (~2 char) */
+  /* # column — minimum width (~2 char), forced */
   .team-table th:first-child,
   .team-table td:first-child {
-    width: 22px;
-    min-width: 22px;
-    max-width: 22px;
-    padding: 4px 1px;
+    width: 20px;
+    min-width: 20px;
+    max-width: 20px;
+    padding: 4px 0;
     color: var(--gray-label);
     font-size: 10px;
     text-align: center;
@@ -2654,7 +2670,54 @@ async function loadVersion(versionId) {
 // 11. RENDERING — TABS
 // ============================================================
 
+// Focus preservation across re-renders.
+// Bug we're fixing: user types in input A, hits Tab → 'change' fires on blur
+// → setField/setTeamMember calls renderActiveTab → DOM is wiped & rebuilt →
+// the input the browser was about to focus on (B) no longer exists, so focus
+// falls back to <body> and the next Tab keypress starts from page-top.
+//
+// Strategy: capture the currently-focused element's POSITION among all
+// tabbable form fields BEFORE we destroy the DOM. After rebuild, focus the
+// element at the same position. This handles both cases:
+//   - activeElement is still A (change fired without blur, e.g. number step):
+//     focus lands back on the same field, caret restored.
+//   - activeElement is already B (Tab moved it before change handler ran):
+//     same numeric index in the new DOM = the equivalent next field.
+function _captureFocusKey() {
+  const el = document.activeElement;
+  if (!el || el === document.body) return null;
+  if (!el.matches || !el.matches("input, select, textarea, button")) return null;
+  const all = Array.from(document.querySelectorAll(
+    'input:not([type="hidden"]), select, textarea, button:not([disabled])'
+  ));
+  const idx = all.indexOf(el);
+  if (idx < 0) return null;
+  return {
+    idx: idx,
+    selStart: (typeof el.selectionStart === "number") ? el.selectionStart : null,
+    selEnd:   (typeof el.selectionEnd   === "number") ? el.selectionEnd   : null,
+  };
+}
+function _restoreFocusKey(key) {
+  if (!key) return;
+  const all = Array.from(document.querySelectorAll(
+    'input:not([type="hidden"]), select, textarea, button:not([disabled])'
+  ));
+  const target = all[key.idx];
+  if (!target) return;
+  try {
+    target.focus({preventScroll: true});
+    if (key.selStart != null &&
+        typeof target.setSelectionRange === "function" &&
+        // setSelectionRange throws on number/email/etc. inputs in some browsers
+        ["text", "search", "tel", "url", "password", "textarea"].includes(target.type || "textarea")) {
+      target.setSelectionRange(key.selStart, key.selEnd);
+    }
+  } catch (e) { /* non-fatal */ }
+}
+
 function renderActiveTab() {
+  const _focusKey = _captureFocusKey();
   document.querySelectorAll("section.tab-content").forEach(s => {
     if (s.hasAttribute("hidden")) return;     // skip permanently-hidden sections (modal targets)
     s.classList.toggle("active", s.dataset.tab === activeTab);
@@ -2678,6 +2741,7 @@ function renderActiveTab() {
       renderSummary();
       break;
   }
+  _restoreFocusKey(_focusKey);
 }
 
 // Render adapters — let the existing render* functions write into a target
@@ -3203,7 +3267,7 @@ function renderNOI() {
   body.innerHTML = "";
 
   const cols = [
-    {label: "Year",            get: y => "Yr " + y.year},
+    {label: "Yr",              get: y => String(y.year)},
     {label: "Monthly rent",    get: y => fmt$(y.monthly_rent)},
     {label: "Annual rent",     get: y => fmt$(y.annual_rent)},
     {label: "Mgmt fee",        get: y => fmt$(y.mgmt)},
@@ -3237,7 +3301,7 @@ function renderNOI() {
       if (cl.output && y.visible) cls += " output";
       if (!y.visible) cls += " note";
       let val;
-      if (!y.visible) val = isLabelCol ? ("Yr " + y.year + " *") : "—";
+      if (!y.visible) val = isLabelCol ? (y.year + "*") : "—";
       else val = cl.get(y);
       tr.appendChild(el("td", {className: cls}, val));
     });
@@ -3280,14 +3344,17 @@ function renderTeam() {
   const restTh = el("th", {className: "col-rest", title: "The Rest: this row absorbs whatever's left over to make the cap stack equal 100%"});
   restTh.innerHTML = "The<br>Rest";
 
+  // Column order (per user request 260427): # | Name | Notes | Group |
+  // Contribution | Ownership % | The Rest | × . Notes promoted next to
+  // Name so it's visible at a glance without scrolling past the money cols.
   const thead = el("thead", null, el("tr", null, [
     el("th", null, "#"),
     nameTh,
+    el("th", {className: "col-notes", title: "Notes — click pencil to edit"}, "📝"),
+    el("th", {className: "col-group"}, "Group"),
     el("th", {className: "col-contribution"}, "Contribution"),
     el("th", null, "Ownership %"),
-    el("th", {className: "col-group"}, "Group"),
     restTh,
-    el("th", {className: "col-notes", title: "Notes — click pencil to edit"}, "📝"),
     el("th", {className: "col-action"}, ""),
   ]));
   tbl.appendChild(thead);
@@ -3306,6 +3373,35 @@ function renderTeam() {
     inp.style.textAlign = "left";
     inp.addEventListener("change", () => setTeamMember(idx, "name", inp.value));
     td.appendChild(inp);
+    tr.appendChild(td);
+
+    // Notes — pencil icon, opens modal editor (promoted right after Name)
+    td = el("td", {className: "col-notes"});
+    const hasNotes = !!(m.notes && m.notes.trim());
+    const notesBtn = el("button", {
+      className: "btn-notes-icon" + (hasNotes ? " has-notes" : ""),
+      title: hasNotes ? ("Notes: " + m.notes.slice(0, 80)) : "Click to add notes",
+    }, hasNotes ? "📝" : "✎");
+    notesBtn.addEventListener("click", () => openNotesModal(idx));
+    td.appendChild(notesBtn);
+    tr.appendChild(td);
+
+    // Group dropdown — (none) + 1–10 (narrow). Promoted up so it sits next
+    // to Notes, ahead of the money columns.
+    td = el("td", {className: "input num col-group"});
+    const gsel = el("select");
+    const groupOpts = [["", "—"]];
+    for (let g = 1; g <= 10; g++) groupOpts.push([String(g), String(g)]);
+    groupOpts.forEach(o => {
+      const op = el("option", {value: o[0]}, o[1]);
+      if (String(m.equal_lock_group || "") === o[0]) op.selected = true;
+      gsel.appendChild(op);
+    });
+    gsel.addEventListener("change", () => {
+      const v = gsel.value === "" ? null : Number(gsel.value);
+      setTeamMember(idx, "equal_lock_group", v);
+    });
+    td.appendChild(gsel);
     tr.appendChild(td);
 
     // Contribution (half-width)
@@ -3357,23 +3453,6 @@ function renderTeam() {
     td.appendChild(inp);
     tr.appendChild(td);
 
-    // Group dropdown — (none) + 1–10 (narrow)
-    td = el("td", {className: "input num col-group"});
-    const gsel = el("select");
-    const groupOpts = [["", "—"]];
-    for (let g = 1; g <= 10; g++) groupOpts.push([String(g), String(g)]);
-    groupOpts.forEach(o => {
-      const op = el("option", {value: o[0]}, o[1]);
-      if (String(m.equal_lock_group || "") === o[0]) op.selected = true;
-      gsel.appendChild(op);
-    });
-    gsel.addEventListener("change", () => {
-      const v = gsel.value === "" ? null : Number(gsel.value);
-      setTeamMember(idx, "equal_lock_group", v);
-    });
-    td.appendChild(gsel);
-    tr.appendChild(td);
-
     // The Rest (auto-deduct flag) — narrow centered checkbox
     td = el("td", {className: "input num col-rest"});
     const cb = el("input", {type: "checkbox"});
@@ -3381,17 +3460,6 @@ function renderTeam() {
     cb.title = "Mark this row as 'The Rest' — auto-fills as 100% − sum(others)";
     cb.addEventListener("change", () => setTeamMember(idx, "is_auto_deduct", cb.checked));
     td.appendChild(cb);
-    tr.appendChild(td);
-
-    // Notes — pencil icon, opens modal editor
-    td = el("td", {className: "col-notes"});
-    const hasNotes = !!(m.notes && m.notes.trim());
-    const notesBtn = el("button", {
-      className: "btn-notes-icon" + (hasNotes ? " has-notes" : ""),
-      title: hasNotes ? ("Notes: " + m.notes.slice(0, 80)) : "Click to add notes",
-    }, hasNotes ? "📝" : "✎");
-    notesBtn.addEventListener("click", () => openNotesModal(idx));
-    td.appendChild(notesBtn);
     tr.appendChild(td);
 
     // Remove
@@ -3420,17 +3488,23 @@ function renderTeam() {
     tbody.appendChild(tr);
   });
 
-  // TOTAL row — % cell turns red when sum ≠ 100%; show the +/− delta inline
+  // TOTAL row — column order matches header: # | Name(label) | Notes | Group |
+  // Contribution($) | Ownership %(red on bad) | TheRest | × . Empty filler
+  // cells keep alignment honest under table-layout:fixed.
   const totalTr = el("tr");
-  totalTr.appendChild(el("td"));
-  totalTr.appendChild(el("td", {className: "label"}, "TOTAL"));
-  totalTr.appendChild(el("td", {className: "num output"}, fmt$(c.team_total_contribution)));
+  totalTr.appendChild(el("td"));                                        // #
+  totalTr.appendChild(el("td", {className: "label"}, "TOTAL"));         // Name
+  totalTr.appendChild(el("td"));                                        // Notes
+  totalTr.appendChild(el("td"));                                        // Group
+  totalTr.appendChild(el("td", {className: "num output"},               // Contribution
+                       fmt$(c.team_total_contribution)));
   const deltaPct = (c.team_total_pct || 0) - 1;
   const pctText = fmtPct(c.team_total_pct) + (c.cap_stack_ok ? "" : " (" + (deltaPct > 0 ? "+" : "−") + fmtPct(Math.abs(deltaPct)) + ")");
-  totalTr.appendChild(el("td", {
+  totalTr.appendChild(el("td", {                                        // Ownership %
     className: "num output" + (c.cap_stack_ok ? "" : " bad-pct")
   }, pctText));
-  totalTr.appendChild(el("td", {colspan: "4"}));
+  totalTr.appendChild(el("td"));                                        // The Rest
+  totalTr.appendChild(el("td"));                                        // ×
   tbody.appendChild(totalTr);
 
   tbl.appendChild(tbody);
