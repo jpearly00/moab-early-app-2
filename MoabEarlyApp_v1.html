@@ -617,6 +617,60 @@
     max-width: 30px !important;
     padding: 4px 2px;
   }
+  /* ---------- GROUP TOTALS table — compact, fixed-layout ---------- */
+  table.grid.groups-table {
+    table-layout: fixed;
+    width: auto;          /* hug content rather than full-stretch */
+    max-width: 360px;     /* ~80+50+80+80+30 + borders */
+    min-width: 0;
+  }
+  .groups-table th, .groups-table td {
+    padding: 4px 6px;
+    font-size: 12px;
+  }
+  .groups-table th.gt-group, .groups-table td.gt-group {
+    width: 80px !important; min-width: 80px !important; max-width: 80px !important;
+    text-align: left;
+  }
+  .groups-table th.gt-count, .groups-table td.gt-count {
+    width: 50px !important; min-width: 50px !important; max-width: 50px !important;
+    text-align: center;
+  }
+  .groups-table th.gt-total, .groups-table td.gt-total {
+    width: 80px !important; min-width: 80px !important; max-width: 80px !important;
+  }
+  .groups-table th.gt-each, .groups-table td.gt-each {
+    width: 80px !important; min-width: 80px !important; max-width: 80px !important;
+  }
+  .groups-table th.gt-action, .groups-table td.gt-action {
+    width: 30px !important; min-width: 30px !important; max-width: 30px !important;
+    padding: 4px 2px; text-align: center;
+  }
+  .groups-table td.gt-action .btn { padding: 2px 6px; min-height: 24px; font-size: 12px; }
+  /* Group Totals header — inline + Group button on the right */
+  h3.groups-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h3.groups-header .btn-add-group {
+    margin-left: auto;
+    background: var(--navy);
+    color: #FFF;
+    border: 1px solid var(--navy);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    text-transform: none;
+    letter-spacing: 0.3px;
+  }
+  h3.groups-header .btn-add-group:hover { background: #182366; }
+  h3.groups-header .btn-add-group:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
   .team-table th.col-name {
     text-align: left;
     padding-left: 10px;
@@ -2058,7 +2112,15 @@ function compute(s) {
   // Group telemetry for the renderer
   out.group_counts = groupCounts;
   out.group_totals = Object.assign({}, s.group_totals || {});
-  out.active_group_ids = Object.keys(groupCounts).map(Number).sort((a, b) => a - b);
+  // Active groups = groups with members OR with a stored total (so a user
+  // can pre-create a group via "+ Group" before assigning anyone to it).
+  const groupsWithTotal = Object.keys(s.group_totals || {})
+    .map(Number).filter(n => n >= 1 && n <= 10);
+  const allGroupIds = new Set([
+    ...Object.keys(groupCounts).map(Number),
+    ...groupsWithTotal,
+  ]);
+  out.active_group_ids = Array.from(allGroupIds).sort((a, b) => a - b);
 
   // Per-investor distributions (uses EFFECTIVE %, not stored)
   out.team_distributions = (s.team_members || []).map((m, i) => ({
@@ -2210,6 +2272,57 @@ function setTeamMember(idx, key, value, options) {
 }
 
 // New: edit a group total (the field below the team table)
+// + Group — pre-create the next available group (1-10) so the user can set
+// its total before assigning anyone to it. Subsequent member rows can pick
+// the group from the per-row dropdown. Idempotent: if the lowest free group
+// is already taken (e.g. via the dropdown), this no-ops.
+function addGroup() {
+  if (!state.group_totals) state.group_totals = {};
+  const used = new Set();
+  (state.team_members || []).forEach(m => {
+    if (m.equal_lock_group) used.add(Number(m.equal_lock_group));
+  });
+  Object.keys(state.group_totals).forEach(k => used.add(Number(k)));
+  const next = [1,2,3,4,5,6,7,8,9,10].find(n => !used.has(n));
+  if (!next) { toast("All 10 groups in use"); return; }
+  state.group_totals[next] = 0;
+  undoStack.push({
+    type: "group_add", groupId: next,
+    description: "add Group " + next,
+    timestamp: Date.now()
+  });
+  if (undoStack.length > 200) undoStack.shift();
+  redoStack = [];
+  state.last_edited_date = todayISO();
+  recompute(); autosave(); renderActiveTab(); updateUndoRedoUI();
+  toast("Group " + next + " created — set its Total %");
+}
+
+// × — remove a group: drop its total AND clear it from any member's
+// equal_lock_group field (so those members revert to independent rows).
+function removeGroup(groupId) {
+  groupId = Number(groupId);
+  if (!groupId) return;
+  const beforeMembers = (state.team_members || [])
+    .map((m, i) => ({i, before: m.equal_lock_group}))
+    .filter(x => Number(x.before) === groupId);
+  const beforeTotal = state.group_totals && state.group_totals[groupId];
+  // Mutate
+  if (state.group_totals) delete state.group_totals[groupId];
+  if (state.group_totals) delete state.group_totals[String(groupId)];
+  beforeMembers.forEach(({i}) => { state.team_members[i].equal_lock_group = null; });
+  undoStack.push({
+    type: "group_remove", groupId: groupId,
+    beforeTotal: beforeTotal, beforeMembers: beforeMembers,
+    description: "remove Group " + groupId,
+    timestamp: Date.now()
+  });
+  if (undoStack.length > 200) undoStack.shift();
+  redoStack = [];
+  state.last_edited_date = todayISO();
+  recompute(); autosave(); renderActiveTab(); updateUndoRedoUI();
+}
+
 function setGroupTotal(groupId, value) {
   if (!state.group_totals) state.group_totals = {};
   value = (value === "" || value === null) ? 0 : Number(value);
@@ -2312,6 +2425,22 @@ function applyAction(a, dir) {
   } else if (a.type === "team_remove") {
     if (dir === "after") state.team_members.splice(a.idx, 1);
     else state.team_members.splice(a.idx, 0, a.member);
+  } else if (a.type === "group_add") {
+    if (!state.group_totals) state.group_totals = {};
+    if (dir === "after") state.group_totals[a.groupId] = 0;
+    else { delete state.group_totals[a.groupId]; delete state.group_totals[String(a.groupId)]; }
+  } else if (a.type === "group_remove") {
+    if (!state.group_totals) state.group_totals = {};
+    if (dir === "after") {
+      // re-do removal
+      delete state.group_totals[a.groupId];
+      delete state.group_totals[String(a.groupId)];
+      (a.beforeMembers || []).forEach(({i}) => { if (state.team_members[i]) state.team_members[i].equal_lock_group = null; });
+    } else {
+      // undo removal
+      if (a.beforeTotal != null) state.group_totals[a.groupId] = a.beforeTotal;
+      (a.beforeMembers || []).forEach(({i, before}) => { if (state.team_members[i]) state.team_members[i].equal_lock_group = before; });
+    }
   }
 }
 
@@ -3711,18 +3840,38 @@ function renderTeam() {
 
   // === GROUP TOTALS EDITOR (one row per active group) ===
   const activeGroups = c.active_group_ids || [];
-  if (activeGroups.length > 0) {
-    body.appendChild(el("h3", null, "Group Totals — set the combined % for each group"));
-    body.appendChild(el("p", {className: "kv-hint"},
-      "Each group's total is split equally among its " + (activeGroups.length === 1 ? "members" : "members below") +
-      ". Empty totals leave grouped members at 0%."));
+  // Header always renders so the "+ Group" button is reachable even when no
+  // groups exist yet — so the user can pre-set a group's total before
+  // assigning anyone to it via the per-member Group dropdown.
+  const groupsHeader = el("h3", {className: "groups-header"});
+  groupsHeader.appendChild(document.createTextNode("Group Totals — set the combined % for each group"));
+  const addGroupBtn = el("button", {
+    className: "btn-add-group",
+    title: "Create the next available group (1-10) so you can set its total before assigning members",
+  }, "+ Group");
+  addGroupBtn.addEventListener("click", addGroup);
+  // Disable when all 10 are taken
+  const usedGroupIds = new Set(activeGroups);
+  const nextFree = [1,2,3,4,5,6,7,8,9,10].find(n => !usedGroupIds.has(n));
+  if (!nextFree) {
+    addGroupBtn.disabled = true;
+    addGroupBtn.title = "All 10 groups in use";
+  }
+  groupsHeader.appendChild(addGroupBtn);
+  body.appendChild(groupsHeader);
 
-    const gTbl = el("table", {className: "grid"});
+  if (activeGroups.length > 0) {
+    body.appendChild(el("p", {className: "kv-hint"},
+      "Each group's total is split equally among its members. Empty totals " +
+      "leave grouped members at 0%."));
+
+    const gTbl = el("table", {className: "grid groups-table"});
     const gThead = el("thead", null, el("tr", null, [
-      el("th", null, "Group"),
-      el("th", null, "Members"),
-      el("th", null, "Total %"),
-      el("th", null, "Per-member %"),
+      el("th", {className: "gt-group"},   "Group"),
+      el("th", {className: "gt-count"},   "# PPL"),
+      el("th", {className: "gt-total"},   "Total %"),
+      el("th", {className: "gt-each"},    "Each %"),
+      el("th", {className: "gt-action"},  ""),
     ]));
     gTbl.appendChild(gThead);
     const gTbody = el("tbody");
@@ -3733,11 +3882,11 @@ function renderTeam() {
       const perMember = (totalNum != null && cnt > 0) ? totalNum / cnt : null;
       const tr = el("tr");
       tr.classList.add("group-" + ((gid - 1) % 4 + 1));
-      tr.appendChild(el("td", {className: "label"}, "Group " + gid));
-      tr.appendChild(el("td", {className: "num"}, String(cnt)));
+      tr.appendChild(el("td", {className: "label gt-group"}, "Group " + gid));
+      tr.appendChild(el("td", {className: "num gt-count"}, String(cnt)));
 
       // Editable group total %  (with visible % suffix, half-percent step)
-      const totTd = el("td", {className: "input num pct-cell"});
+      const totTd = el("td", {className: "input num pct-cell gt-total"});
       const totInp = el("input", {
         type: "number",
         value: totalNum == null ? "" : (totalNum * 100).toFixed(2),
@@ -3755,11 +3904,25 @@ function renderTeam() {
       totTd.appendChild(totInp);
       tr.appendChild(totTd);
 
-      tr.appendChild(el("td", {className: "num output"}, perMember == null ? "—" : fmtPct(perMember)));
+      tr.appendChild(el("td", {className: "num output gt-each"},
+                       perMember == null ? "—" : fmtPct(perMember)));
+
+      // Remove-group × — drops the group's total AND clears it from any
+      // members that were assigned to it.
+      const xTd = el("td", {className: "gt-action"});
+      const rmBtn = el("button", {className: "btn", title: "Remove this group"}, "×");
+      rmBtn.addEventListener("click", () => removeGroup(gid));
+      xTd.appendChild(rmBtn);
+      tr.appendChild(xTd);
+
       gTbody.appendChild(tr);
     });
     gTbl.appendChild(gTbody);
     body.appendChild(gTbl);
+  } else {
+    body.appendChild(el("p", {className: "kv-hint"},
+      "No groups yet. Click + Group above, or set the Group dropdown on " +
+      "any participant row."));
   }
 
   // (Big 100% cap-stack status box removed 260426 — TOTAL row inside the
