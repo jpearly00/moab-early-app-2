@@ -619,7 +619,13 @@
      keep raising specificity in ways that beat plain class selectors. */
   table.grid.team-table {
     table-layout: fixed;
-    width: 100%;
+    /* width is intentionally NOT 100% — we want the table to be wider than
+       the viewport so #teamBody scrolls horizontally and every column has
+       breathing room. min-width sums explicit cols + a generous Name +
+       Ownership %: 20+150+36+50+110+90+50+30 = 536; bump to 720 so the
+       Name and Ownership cells get extra slack. */
+    width: max-content;
+    min-width: 720px;
   }
   .team-table th, .team-table td { vertical-align: middle; }
   /* # column — 2 char */
@@ -633,9 +639,16 @@
     font-size: 10px;
     text-align: center;
   }
-  /* Contribution — half-width */
+  /* Contribution — wide enough for $1,234,567 with comma formatting */
   .team-table th.col-contribution,
   .team-table td.col-contribution {
+    width: 110px !important;
+    min-width: 110px !important;
+    max-width: 110px !important;
+  }
+  /* Ownership % — explicit width so the % suffix doesn't crowd the digits */
+  .team-table th:nth-child(6),
+  .team-table td:nth-child(6) {
     width: 90px !important;
     min-width: 90px !important;
     max-width: 90px !important;
@@ -676,10 +689,20 @@
   .btn-notes-icon.has-notes { background: #FFF7CC; border-color: #C9A227; }
   .team-table th.col-rest,
   .team-table td.col-rest {
-    width: 60px !important;
-    min-width: 60px !important;
-    max-width: 60px !important;
+    width: 50px !important;
+    min-width: 50px !important;
+    max-width: 50px !important;
     text-align: center;
+  }
+  /* Shrink the native "The Rest" checkbox to 1/3 its rendered size. Native
+     checkboxes can't be sized reliably via width/height across browsers,
+     but `transform: scale()` works everywhere. Keep the click target ample
+     by NOT shrinking the surrounding cell padding. */
+  .team-table td.col-rest input[type="checkbox"] {
+    transform: scale(0.33);
+    transform-origin: center;
+    /* Compensates for the visual offset scale() introduces on some browsers */
+    margin: 0;
   }
   .team-table th.col-rest {
     line-height: 1.1;
@@ -1051,6 +1074,13 @@
   }
   .dist-table th.dist-eq, .dist-table td.dist-eq {
     width: 60px !important; min-width: 60px !important; max-width: 60px !important;
+  }
+  /* Sale-tab "% Profit / Share" two-line header — slightly wider than the
+     Summary's "% Eq." since the words need vertical room. Body cells inherit
+     the .dist-eq width so they stay aligned. */
+  .dist-table th.dist-profit-share {
+    width: 65px !important; min-width: 65px !important; max-width: 65px !important;
+    line-height: 1.15;
   }
   .dist-table th.dist-profit, .dist-table td.dist-profit {
     width: 70px !important; min-width: 70px !important; max-width: 70px !important;
@@ -1632,7 +1662,7 @@
       <span class="brand">ABCOapp</span>
       <span class="deal-name" id="dealNameDisplay">Moab Early — 805 N Main</span>
       <div class="actions actions-right">
-        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v260428-0050</span>
+        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v260428-0140</span>
         <button id="feedbackBtn" class="feedback-icon" data-tip="Q & A / Feedback (questions log)">F</button>
         <button id="helpBtn" class="help-icon" data-tip="How to use this app">?</button>
       </div>
@@ -1677,7 +1707,7 @@
       <div id="noiBody"></div>
     </section>
     <section class="tab-content" data-tab="team"><h2>Investor Team — Cap Stack</h2><div id="teamBody"></div></section>
-    <section class="tab-content" data-tab="sale"><h2>Sale — Year-N Exit Waterfall</h2><div id="saleBody"></div></section>
+    <section class="tab-content" data-tab="sale"><h2>Sale — Year-N Exit Waterfall</h2><div id="saleBody"></div></section><!-- h2 hidden via CSS; yearNLabel is dynamic in renderSale -->
     <!-- Hidden render targets used by the modals (Sensitivity, Charts, Deals, Questions/Feedback) -->
     <section class="tab-content" data-tab="sensitivity" hidden><div id="sensBody"></div></section>
     <section class="tab-content" data-tab="charts" hidden><div id="chartsBody"></div></section>
@@ -3406,9 +3436,9 @@ function renderSummary() {
     ["Monthly payment",                 fmt$(c.monthly_payment, 2), false],
     ["Year 1 NOI",                      fmt$(c.years[0] && c.years[0].noi), true],
     ["Year 1 cash flow (after debt)",   fmt$(c.years[0] && c.years[0].cash_flow), true],
-    ["Year-N NOI (at hold)",            fmt$(c.exit_year_noi), true],
-    ["Year-N sale value (at exit cap)", fmt$(c.sale_price), true],
-    ["Year-N total profit",             fmt$(c.total_profit), true],
+    [yearNLabel() + " NOI (at hold)",            fmt$(c.exit_year_noi), true],
+    [yearNLabel() + " sale value (at exit cap)", fmt$(c.sale_price), true],
+    [yearNLabel() + " total profit",             fmt$(c.total_profit), true],
     ["Cap stack sum",                   fmtPct(c.team_total_pct), c.cap_stack_ok],
   ];
   const body = document.getElementById("summaryBody");
@@ -4453,14 +4483,23 @@ function removeBottomTeamMember() {
 }
 
 // ----- SALE -----
+// "Year-N (5)" — keep the symbolic N so it's clear this is the hold-exit
+// year, append the actual number from state for readability. Used wherever
+// "Year-N" appeared in labels.
+function yearNLabel() {
+  const n = state && state.hold_period_years;
+  return "Year-N" + (n ? " (" + n + ")" : "");
+}
+
 function renderSale() {
   const c = computed;
   const body = document.getElementById("saleBody");
   body.innerHTML = "";
+  const yN = yearNLabel();
 
   const kv = el("div", {className: "kv"});
   const rows = [
-    ["Year-N NOI",                  fmt$(c.exit_year_noi), false],
+    [yN + " NOI",                  fmt$(c.exit_year_noi), false],
     ["Sale price (NOI / cap)",      fmt$(c.sale_price), true],
     ["Sale title fees",             fmt$(c.sale_title_fees), false],
     ["Loan payoff at exit",         fmt$(c.loan_payoff_at_exit), false],
@@ -4476,23 +4515,36 @@ function renderSale() {
   body.appendChild(kv);
 
   body.appendChild(el("h3", null, "Distribution by Investor"));
-  const tbl = el("table", {className: "grid"});
+  const tbl = el("table", {className: "grid dist-table"});
+  // Sale tab uses its own two-line header style: "% Profit / Share" so the
+  // user can distinguish at-a-glance from Summary's compact "% Eq." column.
+  // All money-column headers also wrap so each can shrink to a tight width.
+  const profitShareTh = el("th", {className: "dist-eq dist-profit-share"});
+  profitShareTh.innerHTML = "% Profit<br>Share";
+  const profitTh2 = el("th", {className: "dist-profit"});
+  profitTh2.innerHTML = "Profit<br>at exit";
+  const totalTh2 = el("th", {className: "dist-total"});
+  totalTh2.innerHTML = "Total<br>return";
   tbl.appendChild(el("thead", null, el("tr", null, [
-    el("th", null, "Member"),
-    el("th", null, "Initial $"),
-    el("th", null, "% Profit Share"),
-    el("th", null, "Profit"),
-    el("th", null, "Total Return"),
+    el("th", {className: "dist-member"},  "Member"),
+    el("th", {className: "dist-contrib"}, "Cntrbt"),
+    profitShareTh,
+    profitTh2,
+    totalTh2,
   ])));
+  // Compact $-cell with hover-for-full-amount, same pattern as Summary tab.
+  const $kCell = (n, klass) => el("td", {
+    className: klass || "num", title: fmt$(n),
+  }, fmt$k(n));
   const tbody = el("tbody");
   c.team_distributions.forEach(d => {
     if (!d.name) return;
     tbody.appendChild(el("tr", null, [
-      el("td", {className: "label"}, d.name),
-      el("td", {className: "num"}, fmt$(d.contribution)),
-      el("td", {className: "num"}, fmtPct(d.ownership_pct)),
-      el("td", {className: "num output"}, fmt$(d.profit)),
-      el("td", {className: "num"}, fmt$(d.total_return)),
+      el("td", {className: "label dist-member"}, d.name),
+      $kCell(d.contribution, "num dist-contrib"),
+      el("td", {className: "num dist-eq"}, fmtPct(d.ownership_pct)),
+      $kCell(d.profit, "num output dist-profit"),
+      $kCell(d.total_return, "num dist-total"),
     ]));
   });
   tbl.appendChild(tbody);
@@ -4521,7 +4573,7 @@ function renderSensitivity() {
   }
 
   // TABLE 1
-  body.appendChild(el("h3", null, "Table 1 — Year-N sale value:  rent × exit cap rate"));
+  body.appendChild(el("h3", null, "Table 1 — " + yearNLabel() + " sale value:  rent × exit cap rate"));
   body.appendChild(buildSensTable(rents, caps, "Yr1 Rent ↓ / Cap →", "$",
     (r, c) => noiAtRent(r, state.hold_period_years) / c));
 
@@ -4641,7 +4693,7 @@ function renderCharts() {
   }));
 
   // Profit by investor
-  body.appendChild(el("h3", null, "Year-N profit by investor"));
+  body.appendChild(el("h3", null, yearNLabel() + " profit by investor"));
   const cv3 = el("canvas", {width: 700, height: 260});
   body.appendChild(cv3);
   const dists = c.team_distributions.filter(d => d.name);
