@@ -117,17 +117,50 @@
   .topbar .actions-left  { flex: 1; flex-wrap: wrap; }
   .topbar .actions-right { flex-shrink: 0; }
   .topbar .claude-icon {
-    background: transparent;
-    color: rgba(255,255,255,0.45);
-    border: 1px solid rgba(255,255,255,0.30);
+    background: rgba(255,255,255,0.10);
+    color: #FFF;
+    border: 1px solid rgba(255,255,255,0.40);
     border-radius: 4px;
     font-size: 11px;
     padding: 4px 8px;
-    cursor: not-allowed;
+    cursor: pointer;
     margin-right: 14px;
     font-family: inherit;
   }
-  .topbar .claude-icon:before { content: "○ "; }
+  .topbar .claude-icon:hover { background: rgba(255,255,255,0.20); }
+  .topbar .claude-icon:before { content: "✦ "; }
+  /* Claude chat panel inside the modal */
+  .claude-chat {
+    min-height: 60px;
+    max-height: 320px;
+    overflow-y: auto;
+    background: #FAFBFC;
+    border: 1px solid var(--gray-border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+  }
+  .claude-msg { margin-bottom: 8px; }
+  .claude-msg-user { color: #444; }
+  .claude-msg-assistant { color: var(--navy); font-weight: 500; }
+  .claude-key-warn {
+    background: #FFF7CC;
+    border: 1px solid #C9A227;
+    border-radius: 4px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    font-size: 13px;
+  }
+  .claude-input-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 6px;
+  }
+  .btn.btn-sm { padding: 3px 8px; min-height: 24px; font-size: 11px; }
   .topbar .deal-name {
     flex: 1;
     font-weight: 600;
@@ -1060,6 +1093,49 @@
     outline-offset: -1px;
   }
 
+  /* ---------- COMMS COMPOSER (subject + body + To/CC/BCC) ---------- */
+  .comms-recip-row {
+    align-items: center;
+    border-bottom: 1px solid var(--gray-border);
+    padding: 6px 0;
+  }
+  .comms-recip-label {
+    width: 42px;
+    flex-shrink: 0;
+    color: var(--navy);
+    font-size: 12px;
+    letter-spacing: 0.5px;
+  }
+  .comms-subj-input {
+    flex: 1;
+    min-width: 200px;
+    padding: 6px 10px;
+    border: 1px solid var(--gray-border);
+    border-radius: 3px;
+    font-size: 13px;
+    box-sizing: border-box;
+  }
+  .comms-body-row { display: block; }
+  .comms-body-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid var(--gray-border);
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+  .comms-tmpl-sel {
+    padding: 5px 8px;
+    font-size: 13px;
+    border: 1px solid var(--gray-border);
+    border-radius: 3px;
+    flex: 1;
+    max-width: 280px;
+  }
+
   /* ---------- DOCS TAB ---------- */
   .docs-toolbar {
     display: flex;
@@ -1763,13 +1839,13 @@
       <span class="brand">ABCOapp</span>
       <span class="deal-name" id="dealNameDisplay">Moab Early — 805 N Main</span>
       <div class="actions actions-right">
-        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v260428-0210</span>
+        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v260428-0250</span>
         <button id="feedbackBtn" class="feedback-icon" data-tip="Q & A / Feedback (questions log)">F</button>
         <button id="helpBtn" class="help-icon" data-tip="How to use this app">?</button>
       </div>
     </div>
     <div class="topbar-row topbar-row-2">
-      <button class="claude-icon" id="claudeBtn" data-tip="Claude AI assistant — placeholder">Claude</button>
+      <button class="claude-icon" id="claudeBtn" data-tip="Open Claude (paste API key in Settings to enable)">Claude</button>
       <div class="actions actions-left">
         <button id="undoBtn" disabled>↶</button>
         <button id="redoBtn" disabled>↷</button>
@@ -1907,17 +1983,20 @@
   <div class="modal claude-popup">
     <header><span>Claude</span><button class="close" data-close="claude">×</button></header>
     <div class="body">
-      <div class="claude-tabs">
-        <button class="claude-tab active" data-claude-tab="new">New</button>
-        <button class="claude-tab" data-claude-tab="edit">Edit</button>
+      <div id="claudeKeyMissing" class="claude-key-warn hidden">
+        <strong>No API key set.</strong>
+        <p class="kv-hint">Open <button class="btn btn-sm" id="claudeOpenSettingsBtn">⚙ Settings</button> and paste your Anthropic API key (sk-ant-…). Your key is stored only in this browser's localStorage.</p>
       </div>
-      <button class="claude-attach" disabled title="Upload doc/image — placeholder">📎  ATTACH...</button>
-      <div class="claude-divider"></div>
-      <textarea class="claude-input" placeholder="How can I help?" rows="4" disabled></textarea>
+      <div id="claudeChat" class="claude-chat"></div>
+      <textarea class="claude-input" id="claudeInput" placeholder="Ask Claude anything about this deal — pulls full state into context." rows="4"></textarea>
       <div class="claude-input-row">
-        <button class="claude-mic" disabled title="Speech-to-text — placeholder">🎤</button>
+        <label class="comms-check"><input type="checkbox" id="claudeIncludeState" checked /> Include current deal state in context</label>
+        <button class="btn btn-primary" id="claudeSendBtn">Send</button>
       </div>
-      <p class="kv-hint" style="margin-top: 12px;">Claude AI integration is a placeholder for v2 — turn on with an API key in Settings (coming soon).</p>
+      <p class="kv-hint" style="margin-top: 8px;">
+        Calls <code>api.anthropic.com</code> directly from this browser tab.
+        Your API key never leaves your machine. Model: <code>claude-sonnet-4-6</code>.
+      </p>
     </div>
     <div class="footer">
       <button class="btn" data-close="claude">Close</button>
@@ -4695,8 +4774,91 @@ function renderDocs() {
 }
 
 // =============================================================
-// COMMS TAB — placeholder party + thread browser
+// COMMS TAB — placeholder party + thread browser, draft composer
 // =============================================================
+
+// Email templates. Each has a `subject` and a `body` with [bracketed]
+// placeholders that resolve from current state at composer time. Custom
+// is NOT in this map — it's a special case meaning "blank, user types".
+const COMMS_TEMPLATES = {
+  "LOI sent": {
+    subject: "Letter of Intent — [property]",
+    body: "Hi [name],\n\nAttached is our signed Letter of Intent for [property]. Key terms:\n\n• Purchase price: [price]\n• Earnest money: [em]\n• Hold period: [hold] yrs\n• Closing target: 30 days from PSA execution\n\nPlease review and let me know any flags. Happy to walk through it on a call.\n\nBest,\nJohn"
+  },
+  "PSA executed": {
+    subject: "PSA executed — [property]",
+    body: "Hi [name],\n\nFully executed PSA for [property] is attached. Earnest money ([em]) wires Friday per the agreement. Title work has been ordered.\n\nNext touchpoints:\n• Title commitment: this week\n• Diligence walk: scheduled with Property Manager\n• Loan package: with banker\n\nHolla with questions.\n\nJE"
+  },
+  "EM wired": {
+    subject: "Earnest Money wired — [property]",
+    body: "Hi [name],\n\nConfirming earnest money of [em] was wired to the title company today for [property]. Receipt attached.\n\nWe're now under contract. Closing target remains [closing-target].\n\nJE"
+  },
+  "Diligence kickoff": {
+    subject: "Diligence kickoff — [property]",
+    body: "Hi [name],\n\nKicking off due diligence for [property]. Items I need from you / your team:\n\n• Tenant estoppel (executed)\n• Last 12 months rent roll + ledger\n• Operating expense detail\n• Service contracts & warranties\n• Environmental Phase I (if available)\n\nDiligence period closes [close-date]. Please send what you can by EOW.\n\nBest,\nJohn"
+  },
+  "Closing scheduled": {
+    subject: "Closing scheduled — [property]",
+    body: "Hi [name],\n\nClosing for [property] is scheduled. Title is clean, loan is approved, diligence is closed.\n\n• Closing date: TBD per title schedule\n• Wiring instructions: forthcoming from title\n• Final settlement statement: I'll review before sending for signatures\n\nGet on the calendar.\n\nJE"
+  },
+  "Closed — distribution memo": {
+    subject: "Closed — [property] distribution memo",
+    body: "Team,\n\n[property] closed. Cap stack at exit returned [profit] in projected total profit, distributed per Operating Agreement. Q1 distribution memo attached.\n\n• Equity returned: [equity]\n• Projected total profit: [profit]\n• Sale price (Year-N): [sale]\n\nThanks for being part of this one.\n\nJE"
+  },
+  "Quarterly update": {
+    subject: "[property] — quarterly update",
+    body: "Team,\n\nQuarterly update for [property]:\n\n• YTD NOI tracking to plan\n• Tenant in good standing, no material issues\n• Reserves intact\n\nFull report attached. Distribution memo follows month-end.\n\nJE"
+  },
+};
+
+// Resolve [bracketed] placeholders from state. `recipNames` is an array of
+// first names (the To/CC/BCC selections). [name] = first name only when
+// exactly one recipient; "the team" otherwise.
+function resolveTpl(s, recipNames) {
+  if (!s) return "";
+  const namePart = (recipNames && recipNames.length === 1)
+    ? recipNames[0]
+    : (recipNames && recipNames.length > 1 ? "team" : "[name]");
+  const map = {
+    "[name]":          namePart,
+    "[property]":      (state.property_address_full || "").split(",")[0].trim() || state.deal_name || "the property",
+    "[deal_name]":     state.deal_name || "[deal_name]",
+    "[price]":         fmt$(state.purchase_price),
+    "[em]":            fmt$(state.earnest_money),
+    "[hold]":          String(state.hold_period_years || ""),
+    "[doc name]":      "[doc name]",      // user fills manually
+    "[close-date]":    "[close-date]",
+    "[closing-target]":"30 days post-PSA",
+    "[profit]":        fmt$(computed && computed.total_profit),
+    "[sale]":          fmt$(computed && computed.sale_price),
+    "[equity]":        fmt$(computed && computed.equity_returned),
+  };
+  return s.replace(/\[[^\]]+\]/g, m => (map[m] !== undefined ? map[m] : m));
+}
+
+// Helpers for the composer
+function getActiveRecipNames() {
+  const r = window._commsRecipients || {to: {}, cc: {}, bcc: {}};
+  // For [name] resolution we use TO recipients only — most natural
+  return PLACEHOLDER_PARTIES.filter(p => r.to[p.id]).map(p => p.name.split(" ")[0]);
+}
+function getRecipEmails(slot) {
+  const r = window._commsRecipients || {to: {}, cc: {}, bcc: {}};
+  return PLACEHOLDER_PARTIES.filter(p => r[slot] && r[slot][p.id]).map(p => p.email);
+}
+function composerCopyText() {
+  const r = window._commsRecipients || {to: {}, cc: {}, bcc: {}};
+  const list = (slot) => PLACEHOLDER_PARTIES.filter(p => r[slot] && r[slot][p.id])
+                          .map(p => p.name + " <" + p.email + ">").join(", ");
+  const lines = [];
+  if (list("to"))  lines.push("To: "  + list("to"));
+  if (list("cc"))  lines.push("Cc: "  + list("cc"));
+  if (list("bcc")) lines.push("Bcc: " + list("bcc"));
+  if ((window._commsDraft || {}).subject) lines.push("Subject: " + window._commsDraft.subject);
+  lines.push("");
+  if ((window._commsDraft || {}).body) lines.push(window._commsDraft.body);
+  return lines.join("\n");
+}
 const PLACEHOLDER_PARTIES = [
   { id: "p_jable",    name: "John Able",            role: "Lead investor / counsel",  email: "jable@example.com",     phone: "+14355550101" },
   { id: "p_seller",   name: "Mark Holstrom",        role: "Seller",                   email: "mark@holstromre.com",   phone: "+14355550144" },
@@ -4726,37 +4888,111 @@ function renderComms() {
   body.innerHTML = "";
 
   // ========== A. Quick draft composer (top section) ==========
+  // Template library — each entry has a subject + body template with
+  // [bracketed] placeholders. Placeholders resolve from current state at
+  // selection time. "Custom" = blank, fully user-editable, default choice.
   const composer = el("div", {className: "comms-composer"});
   composer.appendChild(makeSectionHeader(
     "Draft a deal-stage email",
-    () => "Composer is a Phase 7+ stub — placeholder copy.",
+    () => composerCopyText(),
     "Composer"
   ));
   const compInner = el("div", {className: "comms-composer-inner"});
-  // Recipients checkboxes
-  const recipBox = el("div", {className: "comms-checkrow"});
-  recipBox.appendChild(el("strong", null, "To: "));
-  PLACEHOLDER_PARTIES.forEach((p, i) => {
-    const lbl = el("label", {className: "comms-check"});
-    const cb = el("input", {type: "checkbox"});
-    if (i < 2) cb.checked = true;
-    lbl.appendChild(cb);
-    lbl.appendChild(document.createTextNode(" " + p.name.split(" ")[0]));
-    recipBox.appendChild(lbl);
+
+  // Three rows: To / CC / BCC. Same party list under each. A person can be
+  // checked in any combination. State is local to this render — re-renders
+  // re-build but checkbox state persists via a module-level scratch object.
+  if (!window._commsRecipients) window._commsRecipients = {to: {}, cc: {}, bcc: {}};
+  const recip = window._commsRecipients;
+  ["to", "cc", "bcc"].forEach(slot => {
+    const row = el("div", {className: "comms-checkrow comms-recip-row"});
+    const lbl = el("strong", {className: "comms-recip-label"}, slot.toUpperCase() + ":");
+    row.appendChild(lbl);
+    PLACEHOLDER_PARTIES.forEach((p) => {
+      const cbLbl = el("label", {className: "comms-check"});
+      const cb = el("input", {type: "checkbox"});
+      if (recip[slot][p.id]) cb.checked = true;
+      cb.addEventListener("change", () => { recip[slot][p.id] = cb.checked; });
+      cbLbl.appendChild(cb);
+      cbLbl.appendChild(document.createTextNode(" " + p.name.split(" ")[0]));
+      row.appendChild(cbLbl);
+    });
+    compInner.appendChild(row);
   });
-  compInner.appendChild(recipBox);
-  // Template dropdown
+
+  // Template dropdown — "Custom" first + selected. Hover any option to see
+  // the body preview via a `title=` tooltip.
   const tmplRow = el("div", {className: "comms-row"});
-  tmplRow.appendChild(el("strong", null, "Template: "));
-  const tmplSel = el("select");
-  ["LOI sent", "PSA executed", "EM wired", "Diligence kickoff", "Closing scheduled", "Closed — distribution memo", "Quarterly update"].forEach(t => {
-    tmplSel.appendChild(el("option", {value: t}, t));
+  tmplRow.appendChild(el("strong", null, "Template:"));
+  const tmplSel = el("select", {className: "comms-tmpl-sel"});
+  const customOpt = el("option", {value: "Custom"}, "Custom");
+  customOpt.title = "Empty subject + body — write whatever you want";
+  tmplSel.appendChild(customOpt);
+  Object.keys(COMMS_TEMPLATES).forEach(name => {
+    const t = COMMS_TEMPLATES[name];
+    const opt = el("option", {value: name}, name);
+    // Tooltip = subject + first ~140 chars of resolved body so the user can
+    // glance over choices without cycling-and-resetting the form.
+    const resolvedSubj = resolveTpl(t.subject, getActiveRecipNames());
+    const resolvedBody = resolveTpl(t.body,    getActiveRecipNames());
+    opt.title = "Subject: " + resolvedSubj + "\n\n" + resolvedBody.slice(0, 240) +
+                (resolvedBody.length > 240 ? "…" : "");
+    tmplSel.appendChild(opt);
   });
+  tmplSel.value = window._commsTemplate || "Custom";
   tmplRow.appendChild(tmplSel);
   compInner.appendChild(tmplRow);
+
+  // Subject + Body (always visible). Pre-fill from template (or persist
+  // user's custom values across re-renders via window scratch).
+  if (!window._commsDraft) window._commsDraft = {subject: "", body: ""};
+  const subjRow = el("div", {className: "comms-row"});
+  subjRow.appendChild(el("strong", null, "Subject:"));
+  const subjInp = el("input", {type: "text", className: "comms-subj-input", placeholder: "Subject line"});
+  subjInp.value = window._commsDraft.subject;
+  subjInp.addEventListener("input", () => { window._commsDraft.subject = subjInp.value; });
+  subjRow.appendChild(subjInp);
+  compInner.appendChild(subjRow);
+
+  const bodyRow = el("div", {className: "comms-row comms-body-row"});
+  const bodyTa = el("textarea", {className: "comms-body-input", rows: 8,
+                                  placeholder: "Email body — type your message here"});
+  bodyTa.value = window._commsDraft.body;
+  bodyTa.addEventListener("input", () => { window._commsDraft.body = bodyTa.value; });
+  bodyRow.appendChild(bodyTa);
+  compInner.appendChild(bodyRow);
+
+  // Template change → fill subject + body with resolved template text. If
+  // user picks Custom, clear them. Saves the prior custom draft so
+  // bouncing back to Custom restores what they typed.
+  tmplSel.addEventListener("change", () => {
+    window._commsTemplate = tmplSel.value;
+    if (tmplSel.value === "Custom") {
+      // Restore the saved custom draft (might be empty if first time)
+      if (!window._commsCustomDraft) window._commsCustomDraft = {subject: "", body: ""};
+      subjInp.value = window._commsCustomDraft.subject;
+      bodyTa.value  = window._commsCustomDraft.body;
+      window._commsDraft.subject = subjInp.value;
+      window._commsDraft.body    = bodyTa.value;
+    } else {
+      // Save what the user had typed in Custom (so a round-trip doesn't lose it)
+      if (window._commsTemplate !== "Custom") {
+        window._commsCustomDraft = {
+          subject: window._commsDraft.subject,
+          body:    window._commsDraft.body,
+        };
+      }
+      const t = COMMS_TEMPLATES[tmplSel.value];
+      subjInp.value = resolveTpl(t.subject, getActiveRecipNames());
+      bodyTa.value  = resolveTpl(t.body,    getActiveRecipNames());
+      window._commsDraft.subject = subjInp.value;
+      window._commsDraft.body    = bodyTa.value;
+    }
+  });
+
   // Attachments + report blocks
   const attRow = el("div", {className: "comms-checkrow"});
-  attRow.appendChild(el("strong", null, "Attach: "));
+  attRow.appendChild(el("strong", null, "Attach:"));
   ["Pro forma PDF", "Cap stack table", "PSA v3", "Title commitment", "Loan term sheet"].forEach(a => {
     const lbl = el("label", {className: "comms-check"});
     const cb = el("input", {type: "checkbox"});
@@ -4766,7 +5002,7 @@ function renderComms() {
   });
   compInner.appendChild(attRow);
   const blockRow = el("div", {className: "comms-checkrow"});
-  blockRow.appendChild(el("strong", null, "Include in body: "));
+  blockRow.appendChild(el("strong", null, "Include in body:"));
   ["Key metrics", "Distribution at exit", "NOI projection", "Sensitivity Table 1"].forEach(b => {
     const lbl = el("label", {className: "comms-check"});
     const cb = el("input", {type: "checkbox"});
@@ -4775,12 +5011,28 @@ function renderComms() {
     blockRow.appendChild(lbl);
   });
   compInner.appendChild(blockRow);
-  // Action buttons
+
+  // Action buttons — Send opens the user's mail client via mailto: with
+  // the To/CC/BCC + subject + body all encoded into the URL. Save to
+  // Drafts is still a stub (would require Gmail OAuth).
   const actRow = el("div", {className: "comms-row"});
-  const sendBtn = el("button", {className: "btn btn-primary"}, "Send");
-  sendBtn.addEventListener("click", () => toast("Send is a Phase 7+ stub"));
+  const sendBtn = el("button", {className: "btn btn-primary"}, "Send (open in mail app)");
+  sendBtn.addEventListener("click", () => {
+    const toEmails  = getRecipEmails("to");
+    const ccEmails  = getRecipEmails("cc");
+    const bccEmails = getRecipEmails("bcc");
+    if (toEmails.length === 0) { toast("Pick at least one TO recipient"); return; }
+    let url = "mailto:" + toEmails.join(",");
+    const params = [];
+    if (ccEmails.length)  params.push("cc="  + ccEmails.join(","));
+    if (bccEmails.length) params.push("bcc=" + bccEmails.join(","));
+    if (window._commsDraft.subject) params.push("subject=" + encodeURIComponent(window._commsDraft.subject));
+    if (window._commsDraft.body)    params.push("body="    + encodeURIComponent(window._commsDraft.body));
+    if (params.length) url += "?" + params.join("&");
+    window.location.href = url;
+  });
   const draftBtn = el("button", {className: "btn"}, "Save to Drafts");
-  draftBtn.addEventListener("click", () => toast("Drafts queue is a Phase 7+ stub"));
+  draftBtn.addEventListener("click", () => toast("Drafts queue is a Phase 7+ stub (needs Gmail OAuth)"));
   actRow.appendChild(sendBtn);
   actRow.appendChild(draftBtn);
   compInner.appendChild(actRow);
@@ -5564,6 +5816,36 @@ async function openSettings() {
   const keyVal = el("div", {className: "kv-value"}); keyVal.appendChild(keyInput);
   settingsKv.appendChild(keyVal);
   settingsKv.appendChild(el("div", {className: "kv-hint"}, "Optional. $200/mo free tier."));
+
+  // ----- Anthropic Claude API key -----
+  settingsKv.appendChild(el("div", {className: "kv-label"}, "Anthropic Claude API key"));
+  const claudeKeyInput = el("input", {
+    type: "password", value: getClaudeKey(),
+    placeholder: "sk-ant-…",
+    autocomplete: "off",
+  });
+  claudeKeyInput.addEventListener("change", () => {
+    setClaudeKey(claudeKeyInput.value.trim());
+    toast(claudeKeyInput.value.trim() ? "Claude key saved (this browser only)" : "Claude key cleared");
+  });
+  const claudeKeyVal = el("div", {className: "kv-value"}); claudeKeyVal.appendChild(claudeKeyInput);
+  settingsKv.appendChild(claudeKeyVal);
+  settingsKv.appendChild(el("div", {className: "kv-hint"},
+    "Stored in this browser's localStorage only. Calls api.anthropic.com directly with anthropic-dangerous-direct-browser-access. Get a key at console.anthropic.com."));
+
+  settingsKv.appendChild(el("div", {className: "kv-label"}, "Claude model"));
+  const claudeModelInput = el("input", {
+    type: "text", value: getClaudeModel(), placeholder: "claude-sonnet-4-6",
+  });
+  claudeModelInput.addEventListener("change", () => {
+    try { localStorage.setItem("moab_claude_model", claudeModelInput.value.trim() || CLAUDE_DEFAULT_MODEL); }
+    catch (e) {}
+    toast("Model set: " + (claudeModelInput.value.trim() || CLAUDE_DEFAULT_MODEL));
+  });
+  const claudeModelVal = el("div", {className: "kv-value"}); claudeModelVal.appendChild(claudeModelInput);
+  settingsKv.appendChild(claudeModelVal);
+  settingsKv.appendChild(el("div", {className: "kv-hint"}, "Default: claude-sonnet-4-6. Override for haiku/opus if needed."));
+
   body.appendChild(settingsKv);
 
   // Section 2: Templates
@@ -5805,6 +6087,23 @@ function bindUI() {
   const claudeBtn = document.getElementById("claudeBtn");
   if (claudeBtn) claudeBtn.addEventListener("click", openClaudeModal);
 
+  // Claude chat send + Settings shortcut
+  const claudeSendBtn = document.getElementById("claudeSendBtn");
+  if (claudeSendBtn) claudeSendBtn.addEventListener("click", sendClaudeMessage);
+  const claudeInput   = document.getElementById("claudeInput");
+  if (claudeInput) claudeInput.addEventListener("keydown", (e) => {
+    // Cmd/Ctrl+Enter sends; plain Enter inserts newline as expected
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      sendClaudeMessage();
+    }
+  });
+  const claudeOpenSettingsBtn = document.getElementById("claudeOpenSettingsBtn");
+  if (claudeOpenSettingsBtn) claudeOpenSettingsBtn.addEventListener("click", () => {
+    document.getElementById("claudeBackdrop").classList.add("hidden");
+    openSettings();
+  });
+
   // NOI sub-actions: Sensitivity, Charts (open as modals)
   const sensBtn = document.getElementById("openSensitivityBtn");
   if (sensBtn) sensBtn.addEventListener("click", openSensitivityModal);
@@ -5871,8 +6170,122 @@ function openChartsModal() {
   renderChartsInto(document.getElementById("chartsModalBody"));
 }
 
+// ============================================================
+// 15B. CLAUDE API CLIENT (Anthropic Messages API, browser direct)
+// ============================================================
+// John supplies an API key via Settings. It's stored only in localStorage
+// — never transmitted anywhere except api.anthropic.com. The 'anthropic-
+// dangerous-direct-browser-access' header opts into Anthropic's CORS
+// support; without it the API rejects browser requests.
+// Model defaults to claude-sonnet-4-6 (current 2026 baseline). Override
+// via the moab_claude_model localStorage key if needed.
+
+const CLAUDE_DEFAULT_MODEL = "claude-sonnet-4-6";
+
+function getClaudeKey()   { return localStorage.getItem("moab_claude_api_key") || ""; }
+function setClaudeKey(k)  { try { localStorage.setItem("moab_claude_api_key", k || ""); } catch (e) {} }
+function getClaudeModel() { return localStorage.getItem("moab_claude_model") || CLAUDE_DEFAULT_MODEL; }
+
+let _claudeHistory = [];   // [{role, content}, ...]
+
 function openClaudeModal() {
   document.getElementById("claudeBackdrop").classList.remove("hidden");
+  // Show the missing-key banner if no key on file
+  const hasKey = !!getClaudeKey();
+  document.getElementById("claudeKeyMissing").classList.toggle("hidden", hasKey);
+  document.getElementById("claudeInput").disabled = !hasKey;
+  document.getElementById("claudeSendBtn").disabled = !hasKey;
+  if (hasKey) {
+    setTimeout(() => { try { document.getElementById("claudeInput").focus(); } catch (e) {} }, 60);
+  }
+}
+
+function _renderClaudeChat() {
+  const wrap = document.getElementById("claudeChat");
+  wrap.innerHTML = "";
+  _claudeHistory.forEach(m => {
+    const div = document.createElement("div");
+    div.className = "claude-msg claude-msg-" + m.role;
+    div.textContent = (m.role === "user" ? "You: " : "Claude: ") + m.content;
+    wrap.appendChild(div);
+  });
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+async function sendClaudeMessage() {
+  const input = document.getElementById("claudeInput");
+  const sendBtn = document.getElementById("claudeSendBtn");
+  const text = input.value.trim();
+  if (!text) return;
+  const apiKey = getClaudeKey();
+  if (!apiKey) { toast("Set your API key in Settings first"); return; }
+
+  // Build the user message — optionally inject current deal state as
+  // context block so Claude knows what we're talking about.
+  let userMsg = text;
+  if (document.getElementById("claudeIncludeState").checked) {
+    const stateSummary = JSON.stringify({
+      deal_name: state.deal_name,
+      deal_code: state.deal_code,
+      deal_stage: state.deal_stage,
+      property_address_full: state.property_address_full,
+      purchase_price: state.purchase_price,
+      earnest_money: state.earnest_money,
+      hold_period_years: state.hold_period_years,
+      loan_to_value: state.loan_to_value,
+      loan_interest_rate: state.loan_interest_rate,
+      rent_year_1_monthly: state.rent_year_1_monthly,
+      exit_cap_rate: state.exit_cap_rate,
+      team_members: state.team_members,
+      computed: {
+        loan_amount: computed && computed.loan_amount,
+        equity_required: computed && computed.equity_required,
+        sale_price: computed && computed.sale_price,
+        total_profit: computed && computed.total_profit,
+        team_total_pct: computed && computed.team_total_pct,
+      },
+    }, null, 2);
+    userMsg = "Current deal state (JSON):\n```json\n" + stateSummary + "\n```\n\n" + text;
+  }
+
+  _claudeHistory.push({role: "user", content: userMsg});
+  _renderClaudeChat();
+  input.value = "";
+  input.disabled = true;
+  sendBtn.disabled = true;
+
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: getClaudeModel(),
+        max_tokens: 1024,
+        messages: _claudeHistory,
+        system: "You are a real-estate investment co-pilot for John Early. He runs Moab Early App, a single-deal underwriting tool. Be concise and use his shorthand. When he gives you state JSON, use the actual numbers in your reasoning.",
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      const err = (data && data.error && data.error.message) || ("HTTP " + r.status);
+      _claudeHistory.push({role: "assistant", content: "[Error] " + err});
+    } else {
+      const content = (data.content && data.content[0] && data.content[0].text) || "(empty response)";
+      _claudeHistory.push({role: "assistant", content: content});
+    }
+  } catch (e) {
+    _claudeHistory.push({role: "assistant", content: "[Network error] " + (e.message || e)});
+  } finally {
+    input.disabled = false;
+    sendBtn.disabled = false;
+    _renderClaudeChat();
+    input.focus();
+  }
 }
 
 let _notesEditingIdx = null;
