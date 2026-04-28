@@ -35,13 +35,20 @@
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+  :root {
+    /* Centered-card width — fits two label/value pairs side-by-side on
+       desktop (each pair ~430px). On viewports narrower than this, the
+       layout naturally fills available width and falls into a single
+       column via the @media rules below. */
+    --app-max-width: 960px;
+  }
   html, body {
     margin: 0;
     padding: 0;
     height: 100%;
     background: var(--bg);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-    font-size: 13px;
+    font-size: 14px;        /* bumped from 13px (+1) per user request */
     color: #222;
     overflow: hidden;
   }
@@ -62,8 +69,10 @@
     display: flex;
     align-items: center;
     width: 100%;
+    max-width: var(--app-max-width);
+    margin: 0 auto;            /* center the row inside the full-width navy bar */
     height: 44px;
-    padding: 0 12px;
+    padding: 0 16px;
     box-sizing: border-box;
     gap: 8px;
   }
@@ -161,6 +170,9 @@
     flex-shrink: 0;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    max-width: var(--app-max-width);
+    margin: 0 auto;
+    width: 100%;
   }
   .tabs button {
     background: transparent;
@@ -188,6 +200,12 @@
     overflow: auto;
     padding: 16px 20px 60px 20px;
     background: var(--bg);
+  }
+  /* Center every tab's content within the same max-width as the topbar so
+     left/right gutters line up across the whole app. */
+  section.tab-content {
+    max-width: var(--app-max-width);
+    margin: 0 auto;
   }
   .layout {
     display: flex;
@@ -362,13 +380,27 @@
     border-left: 1px solid var(--gray-border);
     margin-bottom: 12px;
   }
-  /* INPUTS tab: hide hint column, two equal-width columns spanning the full
-     content area so cells extend to the right edge of the Dev button above. */
+  /* INPUTS tab: hide hint column, two columns sized so the LABEL fits
+     "Property business name" comfortably and the VALUE fits the address
+     plus the right-pinned favicons. No max-width on .kv itself — its
+     parent `.inputs-col` constrains the pair, and `.inputs-2col` lays
+     out two pairs side-by-side on desktop, single column on mobile. */
   section[data-tab="inputs"] .kv {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 200px 1fr;
     width: 100%;
     max-width: 100%;
   }
+  /* DESKTOP: two pairs side-by-side, centered as a card */
+  section[data-tab="inputs"] .inputs-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-width: var(--app-max-width);
+    margin: 0 auto;
+    align-items: start;
+  }
+  section[data-tab="inputs"] .inputs-col { min-width: 0; }
+  section[data-tab="inputs"] .inputs-col .kv:last-child { margin-bottom: 0; }
   /* Larger row height + font on Inputs so it's easy to read & tap */
   section[data-tab="inputs"] .kv .kv-label,
   section[data-tab="inputs"] .kv .kv-value {
@@ -1968,9 +2000,14 @@ function pmt(rate, nper, pv) {
   return -(pv * rate) / (1 - Math.pow(1 + rate, -nper));
 }
 
+// Currency formatter — 2-decimal pennies + thousands commas everywhere by
+// default (per user request 260427-2305: "commas after three digits, and
+// penny decimals on ALL $ values everywhere"). en-US locale handles commas;
+// minimumFractionDigits: 2 ensures "$1,234.00" not "$1,234". Negative values
+// render in accounting parens, e.g. "($86,905.00)".
 function fmt$(n, places) {
   if (n === null || n === undefined || isNaN(n)) return "";
-  if (places === undefined) places = 0;
+  if (places === undefined) places = 2;
   const neg = n < 0;
   const abs = Math.abs(n);
   const s = "$" + abs.toLocaleString("en-US", {minimumFractionDigits: places, maximumFractionDigits: places});
@@ -3210,7 +3247,22 @@ function renderInputs() {
     groups[f.group].push(k);
   });
   const collapsedMap = getCollapsedSections();
-  Object.keys(groups).forEach(g => {
+
+  // Desktop 2-pair layout (per user request 260427-2230):
+  //   LEFT  column → DEAL META + PURCHASE
+  //   RIGHT column → LOAN + OPERATING + EXIT
+  // Mobile collapses both into a single stacked column via CSS.
+  const LEFT_GROUPS  = ["DEAL META", "PURCHASE"];
+  const RIGHT_GROUPS = ["LOAN", "OPERATING", "EXIT"];
+  const wrap = el("div", {className: "inputs-2col"});
+  const colLeft  = el("div", {className: "inputs-col inputs-col-left"});
+  const colRight = el("div", {className: "inputs-col inputs-col-right"});
+  wrap.appendChild(colLeft);
+  wrap.appendChild(colRight);
+  body.appendChild(wrap);
+
+  const renderGroup = (g, target) => {
+    if (!groups[g]) return;
     const isCollapsed = collapsedMap[g] === true;
     const kv = el("div", {className: "kv" + (isCollapsed ? " collapsed" : "")});
 
@@ -3221,12 +3273,34 @@ function renderInputs() {
     header.addEventListener("click", () => toggleCollapsedSection(g));
     kv.appendChild(header);
 
+    // Reusable favicon launcher button. Pulls the brand icon from Google's
+    // s2 favicon service so we never have to bundle SVGs. `disabled` adds a
+    // dashed border + 35% opacity when the underlying field is empty.
+    const mkFavBtn = (href, title, domain, brandColor, disabled) => {
+      const a = el("a", {
+        className: "favbtn" + (disabled ? " disabled" : ""),
+        target: "_blank",
+        rel: "noopener noreferrer",
+        title: title,
+      });
+      a.href = disabled ? "#" : href;
+      a.style.borderColor = brandColor;
+      const img = document.createElement("img");
+      img.src = "https://www.google.com/s2/favicons?domain=" + domain + "&sz=64";
+      img.alt = title;
+      img.width = 16;
+      img.height = 16;
+      a.appendChild(img);
+      return a;
+    };
+
     groups[g].forEach(k => {
       const f = FIELDS[k];
-      // Build the LABEL cell. Property-address gets two favicon launcher
-      // buttons (Google Maps "G" + Zillow "Z") pinned to the right edge of
-      // the white label cell. Address text in the yellow value cell stays
-      // free of overlapping controls.
+      // Build the LABEL cell. Property-address gets Maps + Zillow launchers;
+      // contact-name gets a LinkedIn search launcher (the user's name +
+      // optional email/phone/business as keyword filters). Buttons pin to
+      // the right edge of the white label cell so they never overlap the
+      // address text in the yellow value cell.
       const labelDiv = el("div", {className: "kv-label"});
       labelDiv.appendChild(document.createTextNode(f.label));
       if (k === "property_address_full") {
@@ -3236,27 +3310,37 @@ function renderInputs() {
         const empty = addr.length === 0;
         const mapsHref   = empty ? "#" : "https://www.google.com/maps/search/?api=1&query=" + enc;
         const zillowHref = empty ? "#" : "https://www.zillow.com/homes/" + enc + "_rb/";
-        const mkBtn = (href, title, domain, brandColor) => {
-          const a = el("a", {
-            className: "favbtn" + (empty ? " disabled" : ""),
-            target: "_blank",
-            rel: "noopener noreferrer",
-            title: title,
-          });
-          a.href = href;
-          a.style.borderColor = brandColor;
-          // Google's s2 favicon service — fetches the actual brand icon.
-          // sz=64 → crisp on Retina; img sized to 16px in CSS.
-          const img = document.createElement("img");
-          img.src = "https://www.google.com/s2/favicons?domain=" + domain + "&sz=64";
-          img.alt = title;
-          img.width = 16;
-          img.height = 16;
-          a.appendChild(img);
-          return a;
-        };
-        acts.appendChild(mkBtn(mapsHref,   "Open in Google Maps", "maps.google.com", "#4285F4"));
-        acts.appendChild(mkBtn(zillowHref, "Open on Zillow",      "zillow.com",       "#1969E5"));
+        acts.appendChild(mkFavBtn(mapsHref,   "Open in Google Maps", "maps.google.com", "#4285F4", empty));
+        acts.appendChild(mkFavBtn(zillowHref, "Open on Zillow",      "zillow.com",       "#1969E5", empty));
+        labelDiv.appendChild(acts);
+      }
+      if (k === "contact_name") {
+        // LinkedIn launcher — opens LinkedIn People search pre-filled with
+        // the contact name + any other identifiers we have on record (email,
+        // phone, business name, address city). LinkedIn matches across all
+        // of those, so passing them as keywords surfaces the actual profile
+        // when one exists. We can't programmatically VERIFY a match without
+        // an API key, so the button is shown whenever a contact name exists
+        // and the user verifies the match by clicking through.
+        const name = (state.contact_name || "").trim();
+        const empty = name.length === 0;
+        const extras = [
+          state.contact_email,
+          state.contact_phone,
+          state.property_business_name,
+        ].filter(x => x && String(x).trim()).join(" ");
+        const q = (name + (extras ? " " + extras : "")).trim();
+        const liHref = empty ? "#" :
+          "https://www.linkedin.com/search/results/people/?keywords=" + encodeURIComponent(q);
+        const acts = el("span", {className: "label-fav-actions"});
+        acts.appendChild(mkFavBtn(
+          liHref,
+          empty ? "Enter a contact name first" :
+                  "Search LinkedIn for: " + q,
+          "linkedin.com",
+          "#0A66C2",
+          empty
+        ));
         labelDiv.appendChild(acts);
       }
       kv.appendChild(labelDiv);
@@ -3269,9 +3353,19 @@ function renderInputs() {
       kv.appendChild(valDiv);
       kv.appendChild(el("div", {className: "kv-hint"}, f.hint || ""));
     });
-    body.appendChild(kv);
+    target.appendChild(kv);
+  };
+
+  LEFT_GROUPS.forEach(g  => renderGroup(g, colLeft));
+  RIGHT_GROUPS.forEach(g => renderGroup(g, colRight));
+  // Any other groups not in either list (future-proofing) → append to left.
+  Object.keys(groups).forEach(g => {
+    if (!LEFT_GROUPS.includes(g) && !RIGHT_GROUPS.includes(g)) {
+      renderGroup(g, colLeft);
+    }
   });
-  body.appendChild(el("p", {className: "kv-hint", style: "margin-top: 14px; max-width: 620px;"},
+
+  body.appendChild(el("p", {className: "kv-hint", style: "margin-top: 14px; max-width: 100%; text-align: center;"},
     "Yellow cells = editable. Click any section header above to collapse/expand. Edits cascade to every other tab in the same render frame."));
 }
 
