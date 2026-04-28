@@ -1060,6 +1060,107 @@
     outline-offset: -1px;
   }
 
+  /* ---------- DOCS TAB ---------- */
+  .docs-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .docs-toolbar input[type="search"] {
+    flex: 1;
+    min-width: 180px;
+    padding: 6px 10px;
+    border: 1px solid var(--gray-border);
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  .docs-toolbar select { padding: 6px 8px; font-size: 13px; border: 1px solid var(--gray-border); border-radius: 4px; }
+  .docs-toolbar label   { font-size: 12px; color: var(--gray-label); }
+  table.grid.docs-table { width: 100%; }
+  .docs-table th, .docs-table td { font-size: 12px; }
+  .docs-table .doc-name { font-weight: 600; color: var(--navy); }
+  .doc-status { font-weight: 600; }
+  .doc-status-draft   { color: #C9A227; }
+  .doc-status-pending { color: #6A8FB5; }
+  .doc-status-final   { color: #88B04B; }
+  .doc-status-open    { color: #B25450; }
+  .doc-actions .btn-sm { padding: 3px 8px; min-height: 24px; font-size: 11px; }
+
+  /* ---------- COMMS TAB ---------- */
+  .comms-composer {
+    background: #FFF;
+    border: 1px solid var(--gray-border);
+    border-radius: 5px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+  }
+  .comms-composer h3 { margin-top: 0; }
+  .comms-composer-inner > div { margin: 8px 0; }
+  .comms-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .comms-checkrow { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .comms-check { font-size: 12px; cursor: pointer; user-select: none; }
+  .comms-check input { margin-right: 4px; }
+
+  .comms-parties { display: flex; flex-direction: column; gap: 4px; }
+  .comms-party {
+    border: 1px solid var(--gray-border);
+    border-radius: 4px;
+    background: #FFF;
+  }
+  .comms-party.open { box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .comms-party-head {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .comms-party-head:hover { background: var(--blue-hover); }
+  .comms-party-role { color: var(--gray-label); font-size: 12px; }
+  .comms-party-launchers { display: flex; gap: 6px; margin-left: auto; }
+  .comms-party-chev { color: var(--gray-label); font-size: 14px; }
+
+  .comms-thread-list {
+    padding: 4px 12px 12px 12px;
+    border-top: 1px solid var(--gray-border);
+    background: #fafbfc;
+  }
+  .comms-thread {
+    border-left: 2px solid transparent;
+    padding: 8px 10px;
+    margin: 6px 0;
+    background: #FFF;
+    border-radius: 3px;
+  }
+  .comms-thread.relevant { border-left-color: #C9A227; background: #FFFCF0; }
+  .comms-thread-head {
+    display: flex; gap: 8px; align-items: center;
+    font-size: 12px;
+  }
+  .comms-thread-type { color: var(--navy); font-weight: 700; }
+  .comms-thread-subj { font-weight: 600; flex: 1; }
+  .comms-thread-time { color: var(--gray-label); font-size: 11px; }
+  .comms-thread-open {
+    color: var(--navy); text-decoration: none; font-weight: 700;
+    padding: 0 6px; border: 1px solid var(--gray-border); border-radius: 3px;
+  }
+  .comms-thread-open:hover { background: var(--blue-hover); }
+  .comms-thread-preview { margin: 4px 0 6px; color: #444; font-size: 12px; line-height: 1.4; }
+  .comms-reply-row { display: flex; gap: 6px; }
+  .comms-reply-row input {
+    flex: 1; padding: 4px 8px; border: 1px solid var(--gray-border); border-radius: 3px; font-size: 12px;
+  }
+  .comms-reply-row .btn-sm { padding: 3px 10px; min-height: 24px; font-size: 11px; }
+
+  .comms-party-history-h {
+    margin: 12px 0 4px; font-size: 12px; color: var(--gray-label); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  table.grid.comms-history-table { width: 100%; font-size: 12px; }
+
   /* Summary "Distribution at exit" — narrow money columns since values are
      now compact ($XXk). % Eq. is also narrow. Profit header is two-line so
      `white-space: normal` is required (overrides the global `nowrap` we
@@ -1662,7 +1763,7 @@
       <span class="brand">ABCOapp</span>
       <span class="deal-name" id="dealNameDisplay">Moab Early — 805 N Main</span>
       <div class="actions actions-right">
-        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v260428-0140</span>
+        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v260428-0210</span>
         <button id="feedbackBtn" class="feedback-icon" data-tip="Q & A / Feedback (questions log)">F</button>
         <button id="helpBtn" class="help-icon" data-tip="How to use this app">?</button>
       </div>
@@ -1693,6 +1794,8 @@
     <button data-tab="noi">NOI</button>
     <button data-tab="team">Investor Team</button>
     <button data-tab="sale">Sale</button>
+    <button data-tab="docs">Docs</button>
+    <button data-tab="comms">Comms</button>
   </nav>
 
   <main id="content">
@@ -1708,6 +1811,8 @@
     </section>
     <section class="tab-content" data-tab="team"><h2>Investor Team — Cap Stack</h2><div id="teamBody"></div></section>
     <section class="tab-content" data-tab="sale"><h2>Sale — Year-N Exit Waterfall</h2><div id="saleBody"></div></section><!-- h2 hidden via CSS; yearNLabel is dynamic in renderSale -->
+    <section class="tab-content" data-tab="docs"><h2>Docs</h2><div id="docsBody"></div></section>
+    <section class="tab-content" data-tab="comms"><h2>Comms</h2><div id="commsBody"></div></section>
     <!-- Hidden render targets used by the modals (Sensitivity, Charts, Deals, Questions/Feedback) -->
     <section class="tab-content" data-tab="sensitivity" hidden><div id="sensBody"></div></section>
     <section class="tab-content" data-tab="charts" hidden><div id="chartsBody"></div></section>
@@ -3266,12 +3371,20 @@ function renderActiveTab() {
     case "noi":         renderNOI();         break;
     case "team":        renderTeam();        break;
     case "sale":        renderSale();        break;
+    case "docs":        renderDocs();        break;
+    case "comms":       renderComms();       break;
     // legacy tab values — bounce back to summary if a stale hash points at a removed tab
     case "sensitivity":
     case "charts":
     case "questions":
     case "versions":
     case "readme":
+      activeTab = "summary";
+      renderSummary();
+      break;
+    default:
+      // Unknown tab → fall back to summary so we never silently leave the
+      // user looking at a blank section.
       activeTab = "summary";
       renderSummary();
       break;
@@ -4489,6 +4602,296 @@ function removeBottomTeamMember() {
 function yearNLabel() {
   const n = state && state.hold_period_years;
   return "Year-N" + (n ? " (" + n + ")" : "");
+}
+
+// =============================================================
+// DOCS TAB — placeholder file browser. UI shell only; the actual
+// generate/edit/save flow is Phase 7+. Pre-fills doc names with deal
+// context so it feels real instead of empty.
+// =============================================================
+const PLACEHOLDER_DOCS = [
+  { name: "Letter of Intent",                stage: "Prospect Hot",   status: "Draft",   created: "2026-04-22", edited: "2026-04-26", who: "John Able + JE" },
+  { name: "Purchase & Sale Agreement (PSA)", stage: "Under Contract", status: "Pending", created: "2026-04-25", edited: "2026-04-26", who: "John Able" },
+  { name: "Earnest Money Receipt",           stage: "Under Contract", status: "Pending", created: "2026-04-25", edited: "2026-04-25", who: "Title Co." },
+  { name: "Title Commitment",                stage: "Under Contract", status: "Pending", created: "—",         edited: "—",         who: "Title Co." },
+  { name: "Operating Agreement (LLC)",       stage: "Papered",        status: "Draft",   created: "2026-04-26", edited: "2026-04-26", who: "John Able" },
+  { name: "Tenant Estoppel",                 stage: "Under Contract", status: "Pending", created: "—",         edited: "—",         who: "Property Mgr" },
+  { name: "Loan Application Package",        stage: "Pending",        status: "Draft",   created: "2026-04-26", edited: "2026-04-26", who: "JE + Banker" },
+  { name: "Due Diligence Checklist",         stage: "Under Contract", status: "Open",    created: "2026-04-23", edited: "2026-04-27", who: "JE" },
+  { name: "Closing Disclosure",              stage: "Closed",         status: "—",       created: "—",         edited: "—",         who: "Title Co." },
+  { name: "Final Closing Statement",         stage: "Closed",         status: "—",       created: "—",         edited: "—",         who: "Title Co." },
+  { name: "Distribution Memo (Q1 NOI)",      stage: "Distributions",  status: "—",       created: "—",         edited: "—",         who: "JE" },
+  { name: "K-1 Tax Form",                    stage: "Distributions",  status: "—",       created: "—",         edited: "—",         who: "CPA" },
+  { name: "Quarterly NOI Report",            stage: "Distributions",  status: "—",       created: "—",         edited: "—",         who: "JE" },
+];
+
+let _docsSort = "edited";   // edited | created | stage
+function renderDocs() {
+  const body = document.getElementById("docsBody");
+  body.innerHTML = "";
+
+  // Toolbar: search + sort + new-doc
+  const tools = el("div", {className: "docs-toolbar"});
+  const search = el("input", {type: "search", placeholder: "Search docs (name, stage, who)…"});
+  search.disabled = true;
+  search.title = "Placeholder — search is Phase 7+";
+  tools.appendChild(search);
+  const sort = el("select", {className: "docs-sort"});
+  [["edited", "Last edited"], ["created", "Created"], ["stage", "Deal stage"]].forEach(o => {
+    const opt = el("option", {value: o[0]}, o[1]);
+    if (_docsSort === o[0]) opt.selected = true;
+    sort.appendChild(opt);
+  });
+  sort.addEventListener("change", () => { _docsSort = sort.value; renderActiveTab(); });
+  tools.appendChild(el("label", null, "Sort: "));
+  tools.appendChild(sort);
+  const newBtn = el("button", {className: "btn btn-primary"}, "+ New Doc");
+  newBtn.disabled = true;
+  newBtn.title = "Placeholder — generation flow Phase 7+";
+  tools.appendChild(newBtn);
+  body.appendChild(tools);
+
+  // Sort the placeholder list
+  const sorted = PLACEHOLDER_DOCS.slice().sort((a, b) => {
+    const k = _docsSort;
+    if (k === "edited")  return (b.edited  || "").localeCompare(a.edited  || "");
+    if (k === "created") return (b.created || "").localeCompare(a.created || "");
+    if (k === "stage")   return (a.stage   || "").localeCompare(b.stage   || "");
+    return 0;
+  });
+
+  // Doc list table
+  const tbl = el("table", {className: "grid docs-table"});
+  tbl.appendChild(el("thead", null, el("tr", null, [
+    el("th", null, "Document"),
+    el("th", null, "Stage"),
+    el("th", null, "Status"),
+    el("th", null, "Created"),
+    el("th", null, "Edited"),
+    el("th", null, "Who"),
+    el("th", null, ""),
+  ])));
+  const tbody = el("tbody");
+  sorted.forEach(d => {
+    const tr = el("tr");
+    tr.appendChild(el("td", {className: "label doc-name"}, d.name));
+    tr.appendChild(el("td", null, d.stage));
+    tr.appendChild(el("td", {className: "doc-status doc-status-" + d.status.toLowerCase().replace(/[^a-z]/g, "")}, d.status));
+    tr.appendChild(el("td", null, d.created));
+    tr.appendChild(el("td", null, d.edited));
+    tr.appendChild(el("td", null, d.who));
+    const actTd = el("td", {className: "doc-actions"});
+    const openBtn = el("button", {className: "btn btn-sm", title: "Open / preview (placeholder)"}, "Open");
+    openBtn.addEventListener("click", () => toast("Doc preview is a Phase 7+ stub"));
+    actTd.appendChild(openBtn);
+    tr.appendChild(actTd);
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  body.appendChild(tbl);
+
+  body.appendChild(el("p", {className: "kv-hint", style: "margin-top: 14px"},
+    "Phase 7+: doc generation pre-fills from current deal state (purchase price, parties, dates), routes to e-sign, drops final PDFs back into this list."));
+}
+
+// =============================================================
+// COMMS TAB — placeholder party + thread browser
+// =============================================================
+const PLACEHOLDER_PARTIES = [
+  { id: "p_jable",    name: "John Able",            role: "Lead investor / counsel",  email: "jable@example.com",     phone: "+14355550101" },
+  { id: "p_seller",   name: "Mark Holstrom",        role: "Seller",                   email: "mark@holstromre.com",   phone: "+14355550144" },
+  { id: "p_seller_a", name: "Anita Wright (Esq.)",  role: "Seller's attorney",        email: "anita@wrightlaw.com",   phone: "+14355550155" },
+  { id: "p_title",    name: "Cara Chen",            role: "Title rep (First Am.)",    email: "cchen@firstam.com",     phone: "+14355550161" },
+  { id: "p_banker",   name: "Doug Patel",           role: "Banker (Mountain America)", email: "dpatel@macu.com",       phone: "+14355550172" },
+  { id: "p_pm",       name: "Sarah Holm",           role: "Property manager",         email: "sarah@moabpm.com",      phone: "+14355550188" },
+  { id: "p_assistant",name: "Avery Nielsen",        role: "Assistant",                email: "avery@assist.example",  phone: "+14355550190" },
+];
+const PLACEHOLDER_THREADS = [
+  { partyId: "p_jable",    type: "email", subject: "RE: 805 N Main — pro forma + cap stack",            preview: "Looks good. Send PSA when ready. Want to talk through escalators on Tue.", at: "2026-04-27 14:22", relevant: true },
+  { partyId: "p_jable",    type: "email", subject: "RE: 805 N Main — contributions",                     preview: "$70K confirmed. Wiring instructions next week.",                     at: "2026-04-25 10:14", relevant: true },
+  { partyId: "p_jable",    type: "sms",   subject: "(text)",                                             preview: "Spoke w/ Mark — he's flexible on closing date if EM is non-refundable", at: "2026-04-26 18:03", relevant: true },
+  { partyId: "p_seller",   type: "email", subject: "RE: 805 N Main — counter-offer",                     preview: "Will accept $1.225M with 30-day close. Need EM by Friday.",          at: "2026-04-22 09:51", relevant: true },
+  { partyId: "p_seller",   type: "sms",   subject: "(text)",                                             preview: "Picked up the title docs from Cara, scanning today",                  at: "2026-04-26 11:30", relevant: false },
+  { partyId: "p_seller_a", type: "email", subject: "PSA draft v3 — redlines",                            preview: "Two open items: assignment clause + survival of reps. Marked up attached.", at: "2026-04-26 16:40", relevant: true },
+  { partyId: "p_title",    type: "email", subject: "Title commitment — 805 N Main",                      preview: "Ordered title work; commitment by EOW. One easement to discuss.",     at: "2026-04-25 13:18", relevant: true },
+  { partyId: "p_banker",   type: "email", subject: "Loan term sheet — 7.5% / 25-yr / 80% LTV",           preview: "Confirmed terms. Need PFS + last 2 yrs returns to underwrite.",       at: "2026-04-23 17:02", relevant: true },
+  { partyId: "p_banker",   type: "sms",   subject: "(text)",                                             preview: "Got the pkg, started review. Call you Tues afternoon.",               at: "2026-04-26 09:45", relevant: false },
+  { partyId: "p_pm",       type: "email", subject: "Tenant walkthrough — schedule",                      preview: "Tenant available Wed AM for the diligence walk. Will coordinate w/ inspector.", at: "2026-04-24 14:00", relevant: true },
+  { partyId: "p_assistant",type: "email", subject: "Reminders — 805 N Main close",                       preview: "Following up on K-1s and loan-app docs. EOD I'll have the binder.",   at: "2026-04-27 08:15", relevant: false },
+];
+
+let _commsActiveParty = null;   // currently-expanded party id, if any
+function renderComms() {
+  const body = document.getElementById("commsBody");
+  body.innerHTML = "";
+
+  // ========== A. Quick draft composer (top section) ==========
+  const composer = el("div", {className: "comms-composer"});
+  composer.appendChild(makeSectionHeader(
+    "Draft a deal-stage email",
+    () => "Composer is a Phase 7+ stub — placeholder copy.",
+    "Composer"
+  ));
+  const compInner = el("div", {className: "comms-composer-inner"});
+  // Recipients checkboxes
+  const recipBox = el("div", {className: "comms-checkrow"});
+  recipBox.appendChild(el("strong", null, "To: "));
+  PLACEHOLDER_PARTIES.forEach((p, i) => {
+    const lbl = el("label", {className: "comms-check"});
+    const cb = el("input", {type: "checkbox"});
+    if (i < 2) cb.checked = true;
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(" " + p.name.split(" ")[0]));
+    recipBox.appendChild(lbl);
+  });
+  compInner.appendChild(recipBox);
+  // Template dropdown
+  const tmplRow = el("div", {className: "comms-row"});
+  tmplRow.appendChild(el("strong", null, "Template: "));
+  const tmplSel = el("select");
+  ["LOI sent", "PSA executed", "EM wired", "Diligence kickoff", "Closing scheduled", "Closed — distribution memo", "Quarterly update"].forEach(t => {
+    tmplSel.appendChild(el("option", {value: t}, t));
+  });
+  tmplRow.appendChild(tmplSel);
+  compInner.appendChild(tmplRow);
+  // Attachments + report blocks
+  const attRow = el("div", {className: "comms-checkrow"});
+  attRow.appendChild(el("strong", null, "Attach: "));
+  ["Pro forma PDF", "Cap stack table", "PSA v3", "Title commitment", "Loan term sheet"].forEach(a => {
+    const lbl = el("label", {className: "comms-check"});
+    const cb = el("input", {type: "checkbox"});
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(" " + a));
+    attRow.appendChild(lbl);
+  });
+  compInner.appendChild(attRow);
+  const blockRow = el("div", {className: "comms-checkrow"});
+  blockRow.appendChild(el("strong", null, "Include in body: "));
+  ["Key metrics", "Distribution at exit", "NOI projection", "Sensitivity Table 1"].forEach(b => {
+    const lbl = el("label", {className: "comms-check"});
+    const cb = el("input", {type: "checkbox"});
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(" " + b));
+    blockRow.appendChild(lbl);
+  });
+  compInner.appendChild(blockRow);
+  // Action buttons
+  const actRow = el("div", {className: "comms-row"});
+  const sendBtn = el("button", {className: "btn btn-primary"}, "Send");
+  sendBtn.addEventListener("click", () => toast("Send is a Phase 7+ stub"));
+  const draftBtn = el("button", {className: "btn"}, "Save to Drafts");
+  draftBtn.addEventListener("click", () => toast("Drafts queue is a Phase 7+ stub"));
+  actRow.appendChild(sendBtn);
+  actRow.appendChild(draftBtn);
+  compInner.appendChild(actRow);
+  composer.appendChild(compInner);
+  body.appendChild(composer);
+
+  // ========== B. Party + thread browser ==========
+  body.appendChild(el("h3", null, "Recent threads — by party"));
+  body.appendChild(el("p", {className: "kv-hint"},
+    "Click a party to see all their texts + emails. Threads likely-related to this deal are highlighted. ✉ / 📞 / 💬 buttons open the actual app. 🔗 jumps to the full thread."));
+
+  const partiesEl = el("div", {className: "comms-parties"});
+  PLACEHOLDER_PARTIES.forEach(p => {
+    const pCard = el("div", {className: "comms-party" + (_commsActiveParty === p.id ? " open" : "")});
+    const head = el("div", {className: "comms-party-head"});
+    head.addEventListener("click", () => {
+      _commsActiveParty = (_commsActiveParty === p.id) ? null : p.id;
+      renderActiveTab();
+    });
+    const nameStrong = el("strong", null, p.name);
+    head.appendChild(nameStrong);
+    head.appendChild(el("span", {className: "comms-party-role"}, p.role));
+    // Inline launchers
+    const launchers = el("span", {className: "comms-party-launchers"});
+    [
+      ["mailto:" + p.email, "✉",  "#EA4335", "Email"],
+      ["tel:"    + p.phone, "📞", "#34A853", "Call"],
+      ["sms:"    + p.phone, "💬", "#0A66C2", "Text"],
+    ].forEach(([href, glyph, color, label]) => {
+      const a = document.createElement("a");
+      a.href = href; a.target = "_blank"; a.rel = "noopener noreferrer";
+      a.className = "favbtn"; a.style.borderColor = color; a.title = label + " " + p.name;
+      a.addEventListener("click", e => e.stopPropagation());
+      const sp = document.createElement("span"); sp.className = "actglyph"; sp.textContent = glyph;
+      a.appendChild(sp);
+      launchers.appendChild(a);
+    });
+    head.appendChild(launchers);
+    const chev = el("span", {className: "comms-party-chev"}, _commsActiveParty === p.id ? "▾" : "▸");
+    head.appendChild(chev);
+    pCard.appendChild(head);
+
+    // Threads — collapsed unless the party is the active one
+    if (_commsActiveParty === p.id) {
+      const threads = PLACEHOLDER_THREADS.filter(t => t.partyId === p.id);
+      const list = el("div", {className: "comms-thread-list"});
+      if (threads.length === 0) {
+        list.appendChild(el("p", {className: "kv-hint"}, "No threads yet."));
+      } else {
+        threads.forEach(t => {
+          const item = el("div", {className: "comms-thread" + (t.relevant ? " relevant" : "")});
+          const tHead = el("div", {className: "comms-thread-head"});
+          tHead.appendChild(el("span", {className: "comms-thread-type"}, t.type === "email" ? "✉" : "💬"));
+          tHead.appendChild(el("span", {className: "comms-thread-subj"}, t.subject));
+          tHead.appendChild(el("span", {className: "comms-thread-time"}, t.at));
+          // Open in native app + reply textarea
+          const openA = document.createElement("a");
+          openA.className = "comms-thread-open";
+          openA.title = "Open this thread in " + (t.type === "email" ? "Mail" : "Messages");
+          openA.href = (t.type === "email" ? "mailto:" : "sms:") + (PLACEHOLDER_PARTIES.find(p2 => p2.id === t.partyId).email || "");
+          openA.target = "_blank";
+          openA.textContent = "↗";
+          tHead.appendChild(openA);
+          item.appendChild(tHead);
+          item.appendChild(el("p", {className: "comms-thread-preview"}, t.preview));
+          // Brief-reply field
+          const replyRow = el("div", {className: "comms-reply-row"});
+          const replyInp = el("input", {type: "text", placeholder: "Brief reply…"});
+          const replyBtn = el("button", {className: "btn btn-sm"}, "Send");
+          replyBtn.addEventListener("click", () => {
+            if (!replyInp.value.trim()) return;
+            toast("Reply queued (placeholder)");
+            replyInp.value = "";
+          });
+          replyRow.appendChild(replyInp);
+          replyRow.appendChild(replyBtn);
+          item.appendChild(replyRow);
+          list.appendChild(item);
+        });
+      }
+      // Party deal history — placeholder
+      list.appendChild(el("h4", {className: "comms-party-history-h"}, "Deal history with " + p.name.split(" ")[0]));
+      const histRows = [
+        ["Moab Early A11", "active", "Apr 2026"],
+        ["West Hill Plaza B07", "closed", "Aug 2025"],
+        ["South Loop Center A23", "closed", "Mar 2024"],
+      ];
+      const histTbl = el("table", {className: "grid comms-history-table"});
+      histTbl.appendChild(el("thead", null, el("tr", null, [
+        el("th", null, "Deal"),
+        el("th", null, "Status"),
+        el("th", null, "When"),
+      ])));
+      const histBody = el("tbody");
+      histRows.forEach(r => {
+        histBody.appendChild(el("tr", null, [
+          el("td", {className: "label"}, r[0]),
+          el("td", null, r[1]),
+          el("td", null, r[2]),
+        ]));
+      });
+      histTbl.appendChild(histBody);
+      list.appendChild(histTbl);
+      pCard.appendChild(list);
+    }
+    partiesEl.appendChild(pCard);
+  });
+  body.appendChild(partiesEl);
+
+  body.appendChild(el("p", {className: "kv-hint", style: "margin-top: 14px"},
+    "Placeholder data. Phase 7+ wires these to your actual Gmail / Messages threads via OAuth + a per-party search across both."));
 }
 
 function renderSale() {
