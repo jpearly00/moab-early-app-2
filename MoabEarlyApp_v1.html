@@ -1,0 +1,4787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Moab Early App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<!-- PWA / iOS Add-to-Home-Screen / Mac Add-to-Dock -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Moab Early">
+<meta name="theme-color" content="#1F3A5F">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  /* ==========================================================
+     MOAB EARLY APP — Excel-aesthetic CSS
+     Navy headers, yellow inputs, green outputs.
+     Monospace tabular numerals. Dense grids.
+     ========================================================== */
+
+  :root {
+    --navy: #1F3A5F;
+    --navy-light: #4A6FA5;
+    --yellow-input: #FFF7CC;
+    --yellow-input-dark: #E8DC9F;
+    --green-output: #E2F0D9;
+    --gray-border: #C8C8C8;
+    --gray-label: #666666;
+    --gray-zebra: #F8F8F8;
+    --blue-hover: #E8F1FB;
+    --red-neg: #C00000;
+    --bg: #FFFFFF;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 13px;
+    color: #222;
+    overflow: hidden;
+  }
+
+  /* ---------- TOP BAR (TWO ROWS) ---------- */
+  .topbar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    background: var(--navy);
+    color: #FFF;
+    padding: 0;
+    height: 88px;          /* doubled from 44px to fit two button rows */
+    flex-shrink: 0;
+    border-bottom: 1px solid #000;
+  }
+  .topbar-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 44px;
+    padding: 0 12px;
+    box-sizing: border-box;
+    gap: 8px;
+  }
+  .topbar-row-1 {
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+  }
+  .topbar .brand {
+    font-weight: 700;
+    color: #FFF;
+    font-size: 14px;
+    letter-spacing: 0.6px;
+    flex-shrink: 0;
+  }
+  .topbar-row-1 .deal-name {
+    flex: 1;
+    font-weight: 600;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: rgba(255,255,255,0.92);
+  }
+  .topbar .actions { display: flex; gap: 6px; align-items: center; }
+  .topbar .actions-left  { flex: 1; flex-wrap: wrap; }
+  .topbar .actions-right { flex-shrink: 0; }
+  .topbar .claude-icon {
+    background: transparent;
+    color: rgba(255,255,255,0.45);
+    border: 1px solid rgba(255,255,255,0.30);
+    border-radius: 4px;
+    font-size: 11px;
+    padding: 4px 8px;
+    cursor: not-allowed;
+    margin-right: 14px;
+    font-family: inherit;
+  }
+  .topbar .claude-icon:before { content: "○ "; }
+  .topbar .deal-name {
+    flex: 1;
+    font-weight: 600;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .topbar .actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .topbar button, .topbar select {
+    background: rgba(255,255,255,0.10);
+    color: #FFF;
+    border: 1px solid rgba(255,255,255,0.30);
+    border-radius: 4px;
+    padding: 5px 9px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .topbar button:hover:not(:disabled), .topbar select:hover {
+    background: rgba(255,255,255,0.20);
+  }
+  .topbar button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .topbar button.primary {
+    background: #2C8B3D;
+    border-color: #1E5E2A;
+  }
+  .topbar button.primary:hover { background: #34A148; }
+
+  /* ---------- TABS ---------- */
+  .tabs {
+    display: flex;
+    background: #ECEFF2;
+    border-bottom: 1px solid var(--gray-border);
+    flex-shrink: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tabs button {
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--gray-border);
+    padding: 10px 16px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    color: #444;
+    white-space: nowrap;
+    border-bottom: 3px solid transparent;
+  }
+  .tabs button:hover { background: var(--blue-hover); }
+  .tabs button.active {
+    background: var(--bg);
+    color: var(--navy);
+    font-weight: 600;
+    border-bottom-color: var(--navy);
+  }
+
+  /* ---------- MAIN CONTENT ---------- */
+  main {
+    flex: 1;
+    overflow: auto;
+    padding: 16px 20px 60px 20px;
+    background: var(--bg);
+  }
+  .layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  /* ---------- SECTIONS ---------- */
+  section.tab-content { display: none; }
+  section.tab-content.active { display: block; }
+  section h2 {
+    font-size: 15px;
+    color: var(--navy);
+    margin: 0 0 12px 0;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--navy);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  section h3 {
+    font-size: 13px;
+    color: var(--navy);
+    background: #ECEFF2;
+    padding: 6px 10px;
+    margin: 18px 0 6px 0;
+    border-left: 3px solid var(--navy);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-weight: 700;
+  }
+
+  /* ---------- TABLES (Excel grid) ---------- */
+  table.grid {
+    border-collapse: collapse;
+    background: var(--bg);
+    margin-bottom: 14px;
+    width: auto;
+  }
+  table.grid th, table.grid td {
+    border: 1px solid var(--gray-border);
+    padding: 5px 8px;
+    font-size: 12px;
+    vertical-align: middle;
+    line-height: 1.3;
+  }
+  table.grid th {
+    background: var(--navy);
+    color: #FFF;
+    font-weight: 700;
+    text-align: center;
+    padding: 6px 10px;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+  }
+  table.grid th.sub {
+    background: var(--navy-light);
+  }
+  table.grid td.label {
+    text-align: left;
+    font-weight: 500;
+    background: var(--gray-zebra);
+    min-width: 180px;
+  }
+  table.grid td.note {
+    color: var(--gray-label);
+    font-style: italic;
+    font-size: 11px;
+  }
+  table.grid td.num,
+  table.grid td.input {
+    font-family: "SF Mono", "Consolas", "Menlo", monospace;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    min-width: 110px;
+  }
+  table.grid td.input {
+    background: var(--yellow-input);
+  }
+  table.grid td.output {
+    background: var(--green-output);
+    font-weight: 700;
+    color: var(--navy);
+  }
+  table.grid td.neg { color: var(--red-neg); }
+  table.grid tr:hover td { background-color: var(--blue-hover); }
+  table.grid tr:hover td.input { background-color: var(--yellow-input-dark); }
+  table.grid tr:hover td.output { background-color: #C8E1B4; }
+
+  /* ---------- INPUT FIELDS (inline) ---------- */
+  table.grid td.input input,
+  table.grid td.input select {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    font-size: 12px;
+    padding: 0;
+    margin: 0;
+    outline: none;
+    color: #222;
+  }
+  table.grid td.input input:focus {
+    background: #FFF;
+    outline: 2px solid var(--navy);
+    outline-offset: -2px;
+  }
+
+  /* ---------- KEY-VALUE BLOCKS ---------- */
+  .kv {
+    display: grid;
+    grid-template-columns: 250px 160px 1fr;
+    gap: 0;
+    border-top: 1px solid var(--gray-border);
+    border-left: 1px solid var(--gray-border);
+    margin-bottom: 12px;
+  }
+  /* INPUTS tab: hide hint column, two equal-width columns spanning the full
+     content area so cells extend to the right edge of the Dev button above. */
+  section[data-tab="inputs"] .kv {
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    max-width: 100%;
+  }
+  /* Larger row height + font on Inputs so it's easy to read & tap */
+  section[data-tab="inputs"] .kv .kv-label,
+  section[data-tab="inputs"] .kv .kv-value {
+    padding: 14px 16px;
+    font-size: 14px;
+    min-height: 48px;
+    line-height: 1.45;
+    display: flex;
+    align-items: center;
+  }
+  section[data-tab="inputs"] .kv .kv-value {
+    justify-content: flex-end;
+    text-align: right;
+  }
+  section[data-tab="inputs"] .kv .kv-value input,
+  section[data-tab="inputs"] .kv .kv-value select {
+    font-size: 15px;
+    width: 100%;
+    line-height: 1.4;
+  }
+  section[data-tab="inputs"] .kv-section {
+    padding: 10px 14px;
+    font-size: 12px;
+    letter-spacing: 0.6px;
+  }
+  section[data-tab="inputs"] .kv .kv-hint { display: none; }
+  section[data-tab="inputs"] .kv-section { grid-column: 1 / -1; }
+  /* $ prefix for money inputs */
+  section[data-tab="inputs"] .kv-value.money {
+    position: relative;
+  }
+  section[data-tab="inputs"] .kv-value.money::before {
+    content: "$";
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray-label);
+    font-family: "SF Mono", "Consolas", "Menlo", monospace;
+    font-size: 11px;
+    pointer-events: none;
+  }
+  section[data-tab="inputs"] .kv-value.money input {
+    padding-left: 14px;
+  }
+  /* % suffix for percent inputs */
+  section[data-tab="inputs"] .kv-value.pct {
+    position: relative;
+  }
+  section[data-tab="inputs"] .kv-value.pct::after {
+    content: "%";
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray-label);
+    font-family: "SF Mono", "Consolas", "Menlo", monospace;
+    font-size: 11px;
+    pointer-events: none;
+  }
+  section[data-tab="inputs"] .kv-value.pct input {
+    padding-right: 14px;
+  }
+  /* Collapsible section headers on Inputs */
+  .kv-section.collapsible {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .kv-section.collapsible:hover { background: #2C5687; }
+  .kv-section .chev {
+    display: inline-block;
+    width: 12px;
+    font-size: 9px;
+    transition: transform 0.15s ease;
+  }
+  .kv.collapsed .kv-label,
+  .kv.collapsed .kv-value,
+  .kv.collapsed .kv-hint {
+    display: none !important;   /* override Inputs-specific .kv-label{display:flex} */
+  }
+  .kv.collapsed .kv-section .chev {
+    transform: rotate(-90deg);
+  }
+  .kv .kv-label, .kv .kv-value, .kv .kv-hint {
+    border-right: 1px solid var(--gray-border);
+    border-bottom: 1px solid var(--gray-border);
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .kv .kv-label { background: var(--gray-zebra); }
+  .kv .kv-value {
+    background: var(--yellow-input);
+    text-align: right;
+    font-family: "SF Mono", "Consolas", "Menlo", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .kv .kv-value.output {
+    background: var(--green-output);
+    font-weight: 700;
+    color: var(--navy);
+  }
+  .kv .kv-value input, .kv .kv-value select {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    font-size: 12px;
+    padding: 0;
+    margin: 0;
+    outline: none;
+    color: #222;
+  }
+  .kv .kv-value input:focus {
+    background: #FFF;
+    outline: 2px solid var(--navy);
+    outline-offset: -2px;
+  }
+  .kv .kv-hint {
+    color: var(--gray-label);
+    font-style: italic;
+    font-size: 11px;
+  }
+  .kv-section {
+    grid-column: 1 / -1;
+    background: var(--navy);
+    color: #FFF;
+    padding: 6px 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 11px;
+    border-right: 1px solid var(--gray-border);
+    border-bottom: 1px solid var(--gray-border);
+  }
+
+  /* ---------- PERCENT-INPUT CELL (visible % suffix) ---------- */
+  td.input.pct-cell {
+    position: relative;
+  }
+  td.input.pct-cell::after {
+    content: "%";
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray-label);
+    font-size: 10px;
+    font-family: "SF Mono", "Consolas", "Menlo", monospace;
+    pointer-events: none;
+  }
+  td.input.pct-cell input {
+    padding-right: 14px;
+  }
+  td.input.pct-cell input:disabled + .nope,
+  td.input.pct-cell input:disabled {
+    opacity: 0.85;
+  }
+
+  /* ---------- INVESTOR TEAM ---------- */
+  .team-table th, .team-table td { vertical-align: middle; }
+  /* # column — minimum width (~2 char) */
+  .team-table th:first-child,
+  .team-table td:first-child {
+    width: 22px;
+    min-width: 22px;
+    max-width: 22px;
+    padding: 4px 1px;
+    color: var(--gray-label);
+    font-size: 10px;
+    text-align: center;
+  }
+  /* Contribution — half-width */
+  .team-table th.col-contribution,
+  .team-table td.col-contribution {
+    width: 90px;
+    min-width: 90px;
+    max-width: 90px;
+  }
+  /* Group — narrowest possible */
+  .team-table th.col-group,
+  .team-table td.col-group {
+    width: 50px;
+    min-width: 50px;
+    max-width: 50px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  .team-table td.col-group select {
+    width: 100%;
+    padding: 0 2px;
+  }
+  /* Notes — icon column, narrow */
+  .team-table th.col-notes,
+  .team-table td.col-notes {
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    text-align: center;
+    padding: 4px 2px;
+  }
+  .btn-notes-icon {
+    background: transparent;
+    border: 1px solid var(--gray-border);
+    border-radius: 3px;
+    padding: 4px 6px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+  }
+  .btn-notes-icon:hover { background: var(--blue-hover); }
+  .btn-notes-icon.has-notes { background: #FFF7CC; border-color: #C9A227; }
+  .team-table th.col-rest,
+  .team-table td.col-rest {
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
+    text-align: center;
+  }
+  .team-table th.col-rest {
+    line-height: 1.1;
+    font-size: 10px;
+    white-space: normal;
+  }
+  .team-table th.col-action,
+  .team-table td.col-action {
+    width: 30px;
+    min-width: 30px;
+    padding: 4px 2px;
+  }
+  .team-table th.col-name {
+    text-align: left;
+    padding-left: 10px;
+  }
+  .team-table th.col-name .pills {
+    display: inline-flex;
+    gap: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .team-table th.col-name .pills button {
+    background: rgba(255,255,255,0.18);
+    color: #FFF;
+    border: 1px solid rgba(255,255,255,0.40);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 700;
+    line-height: 1.4;
+    min-height: 22px;
+  }
+  .team-table th.col-name .pills button:hover { background: rgba(255,255,255,0.32); }
+  .team-table th.col-name .pills button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .team-table .group-1 { border-left: 3px solid #88B04B; }
+  .team-table .group-2 { border-left: 3px solid #C9A227; }
+  .team-table .group-3 { border-left: 3px solid #B25450; }
+  .team-table .group-4 { border-left: 3px solid #6A8FB5; }
+  .team-table tr.auto-deduct td.input {
+    background: #FFF0E0;
+  }
+  .team-table tr.auto-deduct td.input input {
+    color: var(--gray-label);
+    cursor: not-allowed;
+  }
+  .team-table td.num.output.bad-pct {
+    background: #FBDDDD !important;
+    color: var(--red-neg) !important;
+  }
+  .team-status {
+    margin: 12px 0;
+    padding: 12px 16px;
+    border-radius: 4px;
+    border: 2px solid;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    line-height: 1.4;
+  }
+  .team-status .sum-num {
+    font-size: 22px;
+    font-family: "SF Mono", "Consolas", "Menlo", monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+  .team-status .sum-detail {
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .team-status.ok {
+    background: #E2F0D9;
+    border-color: #88B04B;
+    color: #2C5A1E;
+  }
+  .team-status.bad {
+    background: #FBDDDD;
+    border-color: var(--red-neg);
+    color: var(--red-neg);
+  }
+
+  /* ---------- MODALS ---------- */
+  .modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal-backdrop.hidden { display: none; }
+  .modal {
+    background: var(--bg);
+    border: 1px solid var(--navy);
+    border-radius: 4px;
+    width: 480px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow: auto;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  .modal-large { width: 720px; }
+  .modal header {
+    background: var(--navy);
+    color: #FFF;
+    padding: 10px 16px;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal header button.close {
+    background: transparent;
+    color: #FFF;
+    border: 1px solid rgba(255,255,255,0.5);
+    border-radius: 3px;
+    padding: 2px 8px;
+    cursor: pointer;
+  }
+  .modal .body { padding: 16px; }
+  .modal .footer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--gray-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .modal button {
+    border: 1px solid var(--gray-border);
+    background: #FFF;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    border-radius: 3px;
+  }
+  .modal button.primary {
+    background: var(--navy);
+    color: #FFF;
+    border-color: var(--navy);
+  }
+  .modal button.primary:hover { background: var(--navy-light); }
+
+  /* ---------- VERSIONS BROWSER ---------- */
+  .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 10px;
+    background: var(--gray-zebra);
+    border: 1px solid var(--gray-border);
+    border-radius: 4px;
+    align-items: center;
+  }
+  .filter-bar label { font-size: 12px; color: var(--gray-label); margin-right: 4px; }
+  .filter-bar input, .filter-bar select {
+    border: 1px solid var(--gray-border);
+    border-radius: 3px;
+    padding: 4px 6px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  .versions-table th { cursor: pointer; user-select: none; }
+  .versions-table th .sort-arrow { font-size: 10px; opacity: 0.6; }
+  .compare-bar {
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ---------- READ ME tab ---------- */
+  .readme {
+    max-width: 800px;
+    line-height: 1.6;
+    font-size: 13px;
+    color: #333;
+  }
+  .readme h3 { margin-top: 24px; }
+  .readme code {
+    background: var(--gray-zebra);
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-size: 12px;
+  }
+
+  /* ---------- BUTTONS ---------- */
+  .btn {
+    padding: 6px 12px;
+    border: 1px solid var(--gray-border);
+    background: #FFF;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    border-radius: 3px;
+  }
+  .btn:hover:not(:disabled) { background: var(--blue-hover); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary,
+  .modal button.btn-primary,
+  body button.btn-primary {
+    background: var(--navy);
+    color: #FFF;
+    border-color: var(--navy);
+  }
+  .btn-primary:hover:not(:disabled),
+  .modal button.btn-primary:hover:not(:disabled) {
+    background: var(--navy-light);
+  }
+  .btn-primary:disabled,
+  .modal button.btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* ---------- LOADING OVERLAY (no white-screen on init) ---------- */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: #FFF;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    font-family: inherit;
+  }
+  .loading-overlay.hidden { display: none; }
+  .loading-overlay .pulse {
+    width: 56px;
+    height: 56px;
+    border: 4px solid var(--gray-border);
+    border-top-color: var(--navy);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    margin-bottom: 14px;
+  }
+  .loading-overlay .label {
+    font-size: 13px;
+    color: var(--navy);
+    font-weight: 600;
+    letter-spacing: 0.4px;
+  }
+  .loading-overlay .sub {
+    font-size: 11px;
+    color: var(--gray-label);
+    margin-top: 4px;
+  }
+  .loading-overlay.error .pulse {
+    border-color: var(--red-neg);
+    border-top-color: var(--red-neg);
+    animation: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- ADDRESS AUTOCOMPLETE ---------- */
+  .autocomplete-dropdown {
+    position: fixed;
+    background: #FFF;
+    border: 1px solid var(--navy);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 80;
+    max-height: 240px;
+    overflow-y: auto;
+    font-size: 12px;
+    min-width: 280px;
+  }
+  .autocomplete-dropdown .item {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--gray-border);
+    cursor: pointer;
+    line-height: 1.3;
+  }
+  .autocomplete-dropdown .item:last-child { border-bottom: none; }
+  .autocomplete-dropdown .item:hover,
+  .autocomplete-dropdown .item.active { background: var(--blue-hover); }
+  .autocomplete-dropdown .item .biz {
+    font-weight: 600;
+    color: var(--navy);
+    display: block;
+  }
+  .autocomplete-dropdown .item .addr {
+    color: var(--gray-label);
+    font-size: 11px;
+    display: block;
+  }
+  .autocomplete-dropdown .empty,
+  .autocomplete-dropdown .searching {
+    padding: 8px 10px;
+    color: var(--gray-label);
+    font-style: italic;
+    font-size: 11px;
+  }
+
+  /* ---------- TOOLTIP (web hover + mobile long-press) ---------- */
+  .tooltip-bubble {
+    position: fixed;
+    background: var(--navy);
+    color: #FFF;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    max-width: 240px;
+    z-index: 300;
+    pointer-events: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    line-height: 1.4;
+  }
+
+  /* ---------- HELP BUTTON ---------- */
+  .topbar .help-icon {
+    background: transparent;
+    color: rgba(255,255,255,0.8);
+    border: 1px solid rgba(255,255,255,0.40);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .topbar .help-icon:hover { background: rgba(255,255,255,0.15); color: #FFF; }
+  .topbar .dev-icon {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.55);
+    border: 1px dashed rgba(255,255,255,0.30);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .topbar .dev-icon:hover { background: rgba(255,255,255,0.18); color: #FFF; }
+
+  /* ---------- DEV PANEL ---------- */
+  .dev-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 360px;
+    max-width: 100vw;
+    height: 100%;
+    background: #FAFAFA;
+    border-left: 2px solid var(--navy);
+    overflow-y: auto;
+    z-index: 90;
+    font-size: 12px;
+    box-shadow: -4px 0 12px rgba(0,0,0,0.15);
+  }
+  .dev-panel.hidden { display: none; }
+  .dev-panel header {
+    background: var(--navy);
+    color: #FFF;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+  }
+  .dev-panel header button {
+    background: transparent;
+    color: #FFF;
+    border: 1px solid rgba(255,255,255,0.5);
+    border-radius: 3px;
+    padding: 2px 8px;
+    cursor: pointer;
+  }
+  .dev-panel .body { padding: 12px 14px; }
+  .dev-panel h4 {
+    margin: 14px 0 6px 0;
+    color: var(--navy);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-bottom: 1px solid var(--gray-border);
+    padding-bottom: 4px;
+  }
+  .dev-panel button {
+    display: block;
+    width: 100%;
+    margin: 4px 0;
+    padding: 6px 10px;
+    background: #FFF;
+    border: 1px solid var(--gray-border);
+    border-radius: 3px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    font-size: 11px;
+  }
+  .dev-panel button:hover:not(:disabled) { background: var(--blue-hover); }
+  .dev-panel button.stub { opacity: 0.5; }
+  .dev-panel button.stub:after { content: " (stub)"; color: var(--gray-label); }
+  .dev-panel pre#devLog {
+    margin-top: 10px;
+    background: #2a2e35;
+    color: #D7DCE0;
+    padding: 8px 10px;
+    border-radius: 3px;
+    font-size: 10px;
+    line-height: 1.4;
+    max-height: 240px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    font-family: "SF Mono", "Consolas", monospace;
+  }
+  .test-pass { color: #88E07A; }
+  .test-fail { color: #FF7A7A; }
+
+  /* ---------- NOI sub-action buttons (Sensitivity / Charts) ---------- */
+  .noi-actions {
+    display: flex;
+    gap: 8px;
+    margin: 0 0 12px 0;
+    flex-wrap: wrap;
+  }
+  .noi-action-btn {
+    background: var(--navy);
+    color: #FFF;
+    border-color: var(--navy);
+  }
+  .noi-action-btn:hover { background: var(--navy-light) !important; color: #FFF !important; }
+
+  /* ---------- Topbar — Feedback button ---------- */
+  .topbar .feedback-icon {
+    background: rgba(255,255,255,0.10);
+    color: #FFF;
+    border: 1px solid rgba(255,255,255,0.40);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .topbar .feedback-icon:hover { background: rgba(255,255,255,0.22); }
+
+  /* ---------- Claude popup (placeholder) ---------- */
+  .claude-popup {
+    width: 380px;
+    max-width: 95vw;
+  }
+  .claude-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--gray-border);
+    margin-bottom: 12px;
+  }
+  .claude-tab {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 8px 12px;
+    cursor: pointer;
+    color: var(--gray-label);
+    font-family: inherit;
+    font-size: 13px;
+    border-bottom: 2px solid transparent;
+  }
+  .claude-tab.active {
+    color: var(--navy);
+    font-weight: 600;
+    border-bottom-color: var(--navy);
+  }
+  .claude-attach {
+    width: 100%;
+    background: var(--gray-zebra);
+    border: 1px dashed var(--gray-border);
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--gray-label);
+    font-family: inherit;
+    font-size: 12px;
+    text-align: left;
+  }
+  .claude-attach:hover:not(:disabled) { background: #F0F2F5; }
+  .claude-divider {
+    height: 1px;
+    background: var(--gray-border);
+    margin: 4px 0 12px 0;
+  }
+  .claude-input {
+    width: 100%;
+    border: 1px solid var(--gray-border);
+    border-radius: 4px;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 14px;
+    color: #222;
+    resize: vertical;
+    background: #FFF;
+    box-sizing: border-box;
+  }
+  .claude-input:disabled { background: var(--gray-zebra); color: var(--gray-label); }
+  .claude-input-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 6px;
+  }
+  .claude-mic {
+    background: var(--navy);
+    color: #FFF;
+    border: 1px solid var(--navy);
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .claude-mic:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ---------- TOAST ---------- */
+  .toast {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--navy);
+    color: #FFF;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 200;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ---------- PRINT ---------- */
+  @media print {
+    .topbar, .tabs { display: none; }
+    main { overflow: visible; padding: 0; }
+    section.tab-content { display: block !important; page-break-after: always; }
+    body { overflow: visible; height: auto; }
+    table.grid th { background: #DDD !important; color: #000 !important; }
+  }
+
+  /* ---------- iOS / mobile (≤700px) ---------- */
+  @media (max-width: 700px) {
+    /* Safe-area insets for notch / Dynamic Island */
+    .layout {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      background: var(--navy);   /* so the inset area looks like the topbar */
+    }
+
+    /* Topbar (mobile) — keep two rows but compact */
+    .topbar {
+      height: 84px;             /* slightly tighter than desktop's 88px */
+      padding: 0;
+    }
+    .topbar-row {
+      height: 42px;
+      padding: 0 6px;
+      gap: 4px;
+    }
+    .topbar .brand {
+      font-size: 12px;
+      letter-spacing: 0.4px;
+    }
+    .topbar .deal-name {
+      font-size: 11px;
+      flex: 1;
+    }
+    .topbar-row-2 .actions-left {
+      flex: 1;
+      justify-content: flex-start;
+      gap: 3px;
+    }
+    .topbar-row-2 .actions-right { gap: 3px; }
+    .topbar button, .topbar select {
+      padding: 8px 10px;
+      font-size: 11px;
+      min-height: 36px;
+    }
+    .topbar button.primary {
+      padding: 8px 12px;
+      font-weight: 700;
+    }
+    .topbar .help-icon, .topbar .dev-icon {
+      width: 32px; height: 32px;
+      padding: 0;
+    }
+    /* Hide the verbose +New label on mobile, just show "+" */
+    .topbar #newDealBtn { font-size: 0; padding: 8px 10px; }
+    .topbar #newDealBtn::before { content: "+ Deal"; font-size: 11px; font-weight: 600; }
+    .topbar #saveVersionBtn { font-size: 0; padding: 8px 12px; }
+    .topbar #saveVersionBtn::before { content: "Save"; font-size: 12px; font-weight: 700; }
+    .topbar #dealsBtn { font-size: 11px; padding: 8px 10px; font-weight: 600; }
+    .topbar .feedback-icon, .topbar .help-icon {
+      width: 30px; height: 30px;
+    }
+
+    /* Mobile-only deal-name subheader — now redundant since deal name shows
+       in topbar row 1 on mobile too. Kept hidden but reservable. */
+    .mobile-deal-name {
+      display: none !important;
+    }
+
+    /* Tabs — horizontal scroll with snap, larger touch targets */
+    .tabs {
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tabs button {
+      padding: 12px 14px;
+      font-size: 13px;
+      min-height: 44px;
+      scroll-snap-align: start;
+      border-bottom-width: 3px;
+    }
+
+    /* Main content — tighter padding */
+    main {
+      padding: 10px 10px 80px 10px;
+      background: #FFF;
+    }
+    section h2 { font-size: 14px; margin-bottom: 8px; }
+    section h3 { font-size: 12px; padding: 5px 8px; margin: 14px 0 5px 0; }
+
+    /* Key-value grids — collapse to 2 cols (label + value), hide hints */
+    .kv {
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    }
+    .kv .kv-hint { display: none; }
+    .kv .kv-label, .kv .kv-value {
+      padding: 10px 8px;
+      font-size: 13px;
+      min-height: 44px;
+    }
+    .kv-section { padding: 8px 10px; font-size: 11px; }
+
+    /* TABLES — scroll horizontally inside a wrapper; bump touch target */
+    section { overflow-x: hidden; }
+    table.grid {
+      width: 100%;
+      min-width: 480px;   /* allow horizontal scroll if real content wants it */
+    }
+    /* Wrap tables in scrolling containers */
+    section h2 + div, section h3 + table.grid, .scroll-x {
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    table.grid th, table.grid td {
+      padding: 8px 6px;
+      font-size: 12px;
+    }
+    table.grid td.input input,
+    table.grid td.input select {
+      font-size: 14px;     /* iOS won't auto-zoom on focus when ≥16px; 14 is the smallest non-zoom-trigger when combined with touch-action */
+      min-height: 36px;
+      padding: 4px 0;
+    }
+    /* Force 16px font on inputs to fully prevent iOS zoom-on-focus */
+    table.grid td.input input[type="number"],
+    table.grid td.input input[type="text"],
+    table.grid td.input select {
+      font-size: 16px;
+    }
+    table.grid td.label { min-width: 130px; }
+
+    /* Investor Team table — sticky name column, tighter cells */
+    .team-table {
+      min-width: 640px;
+    }
+    .team-table th:nth-child(2),
+    .team-table td:nth-child(2) {
+      position: sticky;
+      left: 0;
+      background: var(--gray-zebra);
+      z-index: 2;
+    }
+    .team-table thead th:nth-child(2) {
+      background: var(--navy);
+      color: #FFF;
+    }
+
+    /* Versions table — keep first columns visible; allow scroll */
+    .versions-table {
+      min-width: 720px;
+    }
+
+    /* Modals — full-screen on mobile */
+    .modal {
+      width: 100%;
+      max-width: 100vw;
+      height: 100vh;
+      max-height: 100vh;
+      border-radius: 0;
+      border: none;
+    }
+    .modal-large { width: 100%; }
+    .modal .body { padding: 12px; }
+    .modal-backdrop { padding: 0; }
+
+    /* Buttons inside content — touch-target size */
+    .btn { padding: 10px 14px; min-height: 44px; font-size: 13px; }
+
+    /* Filter bar wraps cleanly */
+    .filter-bar {
+      gap: 6px;
+      padding: 8px;
+    }
+    .filter-bar input, .filter-bar select {
+      min-height: 36px;
+      font-size: 14px;
+    }
+
+    /* Team status box — stack on tight screens */
+    .team-status {
+      padding: 10px 12px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+    .team-status .sum-num { font-size: 26px; }
+
+    /* Dev panel — full width */
+    .dev-panel { width: 100%; }
+  }
+
+  /* Hide the mobile subheader on desktop */
+  .mobile-deal-name { display: none; }
+
+  /* ---------- Very narrow phones (≤390px) ---------- */
+  @media (max-width: 390px) {
+    .topbar button, .topbar select {
+      padding: 6px 7px;
+      font-size: 11px;
+    }
+    .topbar #newDealBtn::before { content: "+"; }
+    .topbar #dealsBtn { font-size: 0; padding: 6px 8px; }
+    .topbar #dealsBtn::before { content: "≡"; font-size: 16px; line-height: 1; }
+    .topbar #saveVersionBtn::before { content: "✓"; font-size: 14px; font-weight: 700; }
+    .tabs button { padding: 9px 10px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY (hidden when init() completes) -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="pulse"></div>
+  <div class="label">Loading Moab Early App…</div>
+  <div class="sub" id="loadingSubLabel">Reading your saved deals</div>
+</div>
+
+<div class="layout">
+
+  <!-- TOP BAR — two rows.
+       Row 1: ABCOapp brand (left) + deal name (center, flex) + F + ? (right)
+       Row 2: Claude + ↶ + ↷ + DEALS + +DEAL + +Save (left group) | ⚙ + Dev (right group, sits under F + ?) -->
+  <header class="topbar">
+    <div class="topbar-row topbar-row-1">
+      <span class="brand">ABCOapp</span>
+      <span class="deal-name" id="dealNameDisplay">Moab Early — 805 N Main</span>
+      <div class="actions actions-right">
+        <button id="feedbackBtn" class="feedback-icon" data-tip="Q & A / Feedback (questions log)">F</button>
+        <button id="helpBtn" class="help-icon" data-tip="How to use this app">?</button>
+      </div>
+    </div>
+    <div class="topbar-row topbar-row-2">
+      <button class="claude-icon" id="claudeBtn" data-tip="Claude AI assistant — placeholder">Claude</button>
+      <div class="actions actions-left">
+        <button id="undoBtn" disabled>↶</button>
+        <button id="redoBtn" disabled>↷</button>
+        <button id="dealsBtn" data-tip="Browse all saved deals & versions">DEALS</button>
+        <button id="newDealBtn" data-tip="Create a new deal from a template">+ DEAL</button>
+        <button id="saveVersionBtn" class="primary" data-tip="Save current state as a new version">+ Save</button>
+      </div>
+      <div class="actions actions-right">
+        <button id="settingsBtn" data-tip="Settings, defaults, templates">⚙</button>
+        <button id="devToggleBtn" class="dev-icon" data-tip="Dev panel (Cmd+Shift+D — web only)" hidden>Dev</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile-only deal-name subheader (replaces topbar text on small screens) -->
+  <div class="mobile-deal-name" id="mobileDealName">Moab Early — 805 N Main, Moab, UT</div>
+
+  <!-- TAB NAV — Inputs first (leftmost), then Summary, then the rest -->
+  <nav class="tabs" id="tabnav">
+    <button data-tab="inputs" class="active">Inputs</button>
+    <button data-tab="summary">Summary</button>
+    <button data-tab="noi">NOI</button>
+    <button data-tab="team">Investor Team</button>
+    <button data-tab="sale">Sale</button>
+  </nav>
+
+  <main id="content">
+    <section class="tab-content active" data-tab="summary"><h2>Summary</h2><div id="summaryBody"></div></section>
+    <section class="tab-content" data-tab="inputs"><h2>Inputs</h2><div id="inputsBody"></div></section>
+    <section class="tab-content" data-tab="noi">
+      <h2>NOI — Year-by-Year</h2>
+      <div class="noi-actions">
+        <button class="btn noi-action-btn" id="openSensitivityBtn" data-tip="Show sensitivity tables (rent × cap, rent × loan rate, IRR)">Sensitivity tables</button>
+        <button class="btn noi-action-btn" id="openChartsBtn" data-tip="Show charts (NOI growth, cap stack, profit by investor)">Charts</button>
+      </div>
+      <div id="noiBody"></div>
+    </section>
+    <section class="tab-content" data-tab="team"><h2>Investor Team — Cap Stack</h2><div id="teamBody"></div></section>
+    <section class="tab-content" data-tab="sale"><h2>Sale — Year-N Exit Waterfall</h2><div id="saleBody"></div></section>
+    <!-- Hidden render targets used by the modals (Sensitivity, Charts, Deals, Questions/Feedback) -->
+    <section class="tab-content" data-tab="sensitivity" hidden><div id="sensBody"></div></section>
+    <section class="tab-content" data-tab="charts" hidden><div id="chartsBody"></div></section>
+    <section class="tab-content" data-tab="questions" hidden><div id="questionsBody"></div></section>
+    <section class="tab-content" data-tab="versions" hidden><div id="versionsBody"></div></section>
+  </main>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-backdrop hidden" id="settingsBackdrop">
+  <div class="modal modal-large">
+    <header><span>Settings &amp; Templates</span><button class="close" data-close="settings">×</button></header>
+    <div class="body" id="settingsBody"></div>
+    <div class="footer">
+      <button class="btn" data-close="settings">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW DEAL MODAL -->
+<div class="modal-backdrop hidden" id="newDealBackdrop">
+  <div class="modal">
+    <header><span>New Deal — Pick a Template</span><button class="close" data-close="newDeal">×</button></header>
+    <div class="body" id="newDealBody"></div>
+    <div class="footer">
+      <button class="btn" data-close="newDeal">Cancel</button>
+      <button class="btn btn-primary" id="newDealCreate">Create Deal</button>
+    </div>
+  </div>
+</div>
+
+<!-- COMPARE MODAL -->
+<div class="modal-backdrop hidden" id="compareBackdrop">
+  <div class="modal modal-large">
+    <header><span>Compare Versions</span><button class="close" data-close="compare">×</button></header>
+    <div class="body" id="compareBody"></div>
+    <div class="footer">
+      <button class="btn" data-close="compare">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEALS MODAL (replaces Deal Browser tab) -->
+<div class="modal-backdrop hidden" id="dealsBackdrop">
+  <div class="modal modal-large">
+    <header><span>Deals</span><button class="close" data-close="deals">×</button></header>
+    <div class="body" id="dealsBody"></div>
+    <div class="footer">
+      <button class="btn" data-close="deals">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- FEEDBACK MODAL (replaces Questions tab) -->
+<div class="modal-backdrop hidden" id="feedbackBackdrop">
+  <div class="modal modal-large">
+    <header><span>Feedback &amp; Questions</span><button class="close" data-close="feedback">×</button></header>
+    <div class="body" id="feedbackBody"></div>
+    <div class="footer">
+      <button class="btn" data-close="feedback">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- SENSITIVITY MODAL (button inside NOI tab) -->
+<div class="modal-backdrop hidden" id="sensitivityBackdrop">
+  <div class="modal modal-large">
+    <header><span>Sensitivity Tables</span><button class="close" data-close="sensitivity">×</button></header>
+    <div class="body" id="sensitivityModalBody"></div>
+    <div class="footer">
+      <button class="btn" data-close="sensitivity">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHARTS MODAL (button inside NOI tab) -->
+<div class="modal-backdrop hidden" id="chartsBackdrop">
+  <div class="modal modal-large">
+    <header><span>Charts</span><button class="close" data-close="charts">×</button></header>
+    <div class="body" id="chartsModalBody"></div>
+    <div class="footer">
+      <button class="btn" data-close="charts">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLAUDE POPUP (placeholder UI — non-functional in v1) -->
+<div class="modal-backdrop hidden" id="claudeBackdrop">
+  <div class="modal claude-popup">
+    <header><span>Claude</span><button class="close" data-close="claude">×</button></header>
+    <div class="body">
+      <div class="claude-tabs">
+        <button class="claude-tab active" data-claude-tab="new">New</button>
+        <button class="claude-tab" data-claude-tab="edit">Edit</button>
+      </div>
+      <button class="claude-attach" disabled title="Upload doc/image — placeholder">📎  ATTACH...</button>
+      <div class="claude-divider"></div>
+      <textarea class="claude-input" placeholder="How can I help?" rows="4" disabled></textarea>
+      <div class="claude-input-row">
+        <button class="claude-mic" disabled title="Speech-to-text — placeholder">🎤</button>
+      </div>
+      <p class="kv-hint" style="margin-top: 12px;">Claude AI integration is a placeholder for v2 — turn on with an API key in Settings (coming soon).</p>
+    </div>
+    <div class="footer">
+      <button class="btn" data-close="claude">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTES MODAL (opens from notes pencil icon in Investor Team) -->
+<div class="modal-backdrop hidden" id="notesBackdrop">
+  <div class="modal">
+    <header><span>Notes — <span id="notesMemberName">(member)</span></span><button class="close" data-close="notes">×</button></header>
+    <div class="body">
+      <textarea id="notesTextarea" rows="6" style="width: 100%; font-family: inherit; font-size: 14px; padding: 10px; border: 1px solid var(--gray-border); border-radius: 3px; box-sizing: border-box; resize: vertical;" placeholder="Type notes about this participant…"></textarea>
+    </div>
+    <div class="footer">
+      <button class="btn" data-close="notes">Cancel</button>
+      <button class="btn btn-primary" id="notesSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- HELP MODAL (now contains the full Read Me content) -->
+<div class="modal-backdrop hidden" id="helpBackdrop">
+  <div class="modal modal-large">
+    <header><span>How to use Moab Early App</span><button class="close" data-close="help">×</button></header>
+    <div class="body" id="helpBody">
+      <div class="readme">
+        <p><strong>Open and start using.</strong> No login. No account. Everything runs on this computer or device.</p>
+
+        <h3>Find a deal</h3>
+        <p>The first tab is <strong>Deal Browser</strong>. Saved deals show here with the most-recent first. Filter by price, team count, or date range. Click <strong>Load</strong> on any row to open it.</p>
+
+        <h3>Edit a deal</h3>
+        <p>Click <strong>Inputs</strong> to change deal terms. Yellow cells are editable. Type a number, hit Tab. Every other tab updates instantly. Use <strong>Cmd-Z</strong> (or <strong>Ctrl-Z</strong>) to undo.</p>
+
+        <h3>Investor Team</h3>
+        <p>Click <strong>Investor Team</strong> to set up the cap stack. Each member has a Contribution and an Ownership %. Use <strong>Group</strong> to lock several members to equal share. Use <strong>Auto-deduct</strong> on one member so their % auto-fills as 100% − everyone else. The cap stack must equal 100% before saving a version.</p>
+
+        <h3>Save a version</h3>
+        <p>Click <strong>+ Save</strong> in the top bar. The first save will ask you to grant the app permission to write to a folder on your computer (the same folder this app is in). Click Allow once and you're done — every future save writes silently to that folder.</p>
+
+        <h3>Make a new deal</h3>
+        <p>Click <strong>+ New</strong>. Pick a template (last-used is highlighted at top). The form opens pre-filled with the template's defaults — edit, save, done.</p>
+
+        <h3>Settings &amp; Templates</h3>
+        <p>Click the <strong>⚙</strong> gear. Set how many years NOI projects (default 10). Manage templates (Duplicate, Delete, Set as Default, Save current state as new template).</p>
+
+        <h3>Add to Mac dock or iPhone home screen</h3>
+        <p><strong>iPhone / iPad:</strong> Open in Safari → tap Share → Add to Home Screen.<br>
+        <strong>Mac (macOS Sonoma+):</strong> Open in Safari → File → Add to Dock. Or in Chrome, click the install icon in the URL bar.</p>
+
+        <h3>Tooltips</h3>
+        <p><strong>Desktop:</strong> hover any button for a brief description.<br>
+        <strong>Mobile:</strong> long-press (~½ second) any button for the same.</p>
+
+        <h3>Read Me tab</h3>
+        <p>For the full reference — every tab explained, every shortcut, privacy details — open the <strong>Read Me</strong> tab.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <button class="btn" data-close="help">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEV PANEL (web only — never shown in PWA standalone) -->
+<aside class="dev-panel hidden" id="devPanel">
+  <header>
+    <span>Dev Mode</span>
+    <button class="close-dev">Close</button>
+  </header>
+  <div class="body">
+    <h4>Tests</h4>
+    <button id="dev-runAllTests">▶ Run All Tests</button>
+    <button class="stub">Cascade Integrity</button>
+    <button class="stub">Truth-Source Fidelity</button>
+    <button class="stub">Round-Trip</button>
+    <button class="stub">State Shape</button>
+
+    <h4>Data</h4>
+    <button id="dev-populateExamples">Populate Example Deals</button>
+    <button class="stub">Generate Variant of Current</button>
+    <button id="dev-clearTestData">Clear Test Data</button>
+    <button class="stub">Reset to Defaults</button>
+
+    <h4>Inspect</h4>
+    <button id="dev-healthStats">Health Stats</button>
+    <button class="stub">Show Compute Graph</button>
+    <button class="stub">Show Field States</button>
+    <button class="stub">Console Log Mirror</button>
+
+    <h4>Export</h4>
+    <button id="dev-exportStateJSON">Export State JSON</button>
+    <button class="stub">Export Truth XLSX</button>
+    <button class="stub">Export Test Report</button>
+
+    <pre id="devLog">[Dev panel ready. Hidden in PWA standalone mode.]
+</pre>
+  </div>
+</aside>
+
+<!-- ============================================================
+     SCRIPT — APP LOGIC
+     ============================================================ -->
+<script>
+'use strict';
+
+// ============================================================
+// 1. CONSTANTS & FIELD REGISTRY
+// ============================================================
+
+const APP_VERSION = "v1";
+const APP_NAME = "Moab Early App";
+
+// All editable fields with metadata.
+// Keys match xlsx named ranges and SPEC § 6.
+const FIELDS = {
+  // DEAL META
+  deal_name:                   {label: "Deal name",                 group: "DEAL META",    type: "string",  hint: ""},
+  property_address_full:       {label: "Property address",          group: "DEAL META",    type: "string",  hint: "Google / Nominatim autocomplete (Phase 5)"},
+  property_business_name:      {label: "Property business name",    group: "DEAL META",    type: "string",  hint: "auto-pull from Maps (Phase 5)"},
+  property_business_url:       {label: "Property business URL",     group: "DEAL META",    type: "string",  hint: "auto-pull from Maps (Phase 5)"},
+  property_acres:              {label: "Property acres",            group: "DEAL META",    type: "number",  fmt: "decimal", min: 0, step: 0.01},
+  closing_date:                {label: "Closing date ($FP)",        group: "DEAL META",    type: "string",  hint: "YYYY-MM-DD; for Versions filter"},
+  contact_name:                {label: "Contact name",              group: "DEAL META",    type: "string",  hint: ""},
+  contact_phone:               {label: "Contact phone",             group: "DEAL META",    type: "string",  hint: ""},
+  contact_email:               {label: "Contact email",             group: "DEAL META",    type: "string",  hint: ""},
+
+  // PURCHASE
+  purchase_price:              {label: "Purchase price",            group: "PURCHASE",     type: "number",  fmt: "$",  min: 100000,  max: 5000000, step: 1000},
+  earnest_money:               {label: "Earnest money",             group: "PURCHASE",     type: "number",  fmt: "$",  min: 0,       max: 100000,  step: 500},
+  em_allocation_mode:          {label: "EM allocation mode",        group: "PURCHASE",     type: "select",  options: ["dedicated", "distributed", "je_absorbed"], hint: "dedicated = own line | distributed = split across team | je_absorbed = JE eats it"},
+  reserve:                     {label: "Reserve",                   group: "PURCHASE",     type: "number",  fmt: "$",  min: 0,       max: 200000,  step: 1000},
+  title_fees:                  {label: "Title fees",                group: "PURCHASE",     type: "number",  fmt: "$",  min: 0,       max: 50000,   step: 100},
+  loan_costs_fixed:            {label: "Loan costs (fixed)",        group: "PURCHASE",     type: "number",  fmt: "$",  min: 0,       max: 50000,   step: 100},
+  loan_costs_pct:              {label: "Loan costs (% of loan)",    group: "PURCHASE",     type: "number",  fmt: "%",  min: 0,       max: 0.05,    step: 0.001},
+
+  // LOAN
+  loan_to_value:               {label: "Loan-to-value",             group: "LOAN",         type: "number",  fmt: "%",  min: 0.50,    max: 0.90,    step: 0.01},
+  loan_interest_rate:          {label: "Loan interest rate",        group: "LOAN",         type: "number",  fmt: "%",  min: 0.03,    max: 0.15,    step: 0.00125},
+  loan_amortization_years:     {label: "Loan amortization (yrs)",   group: "LOAN",         type: "select",  options: [15, 20, 25, 30]},
+
+  // OPERATING
+  rent_year_1_monthly:         {label: "Year 1 rent (monthly NNN)", group: "OPERATING",    type: "number",  fmt: "$",  min: 1000,    max: 50000,   step: 100},
+  rent_annual_escalator:       {label: "Annual rent escalator",     group: "OPERATING",    type: "number",  fmt: "%",  min: 0,       max: 0.10,    step: 0.0025},
+  mgmt_fee_pct_of_rent:        {label: "Mgmt fee % of rent",        group: "OPERATING",    type: "number",  fmt: "%",  min: 0,       max: 0.15,    step: 0.0025},
+  rm_annual:                   {label: "R&M annual",                group: "OPERATING",    type: "number",  fmt: "$",  min: 0,       max: 100000,  step: 100},
+  misc_annual:                 {label: "Misc OpEx annual",          group: "OPERATING",    type: "number",  fmt: "$",  min: 0,       max: 100000,  step: 100},
+  property_tax_annual:         {label: "Property tax annual",       group: "OPERATING",    type: "number",  fmt: "$",  min: 0,       max: 100000,  step: 100, hint: "only if NOT pure NNN"},
+  insurance_annual:            {label: "Insurance annual",          group: "OPERATING",    type: "number",  fmt: "$",  min: 0,       max: 50000,   step: 50,  hint: "only if NOT pure NNN"},
+  is_pure_nnn:                 {label: "Pure NNN?",                 group: "OPERATING",    type: "boolean", hint: "true = tax+ins NOT in NOI"},
+
+  // EXIT
+  hold_period_years:           {label: "Hold period (yrs)",         group: "EXIT",         type: "number",  fmt: "int", min: 1,      max: 30,      step: 1},
+  noi_projection_years:        {label: "NOI projection length (yrs)", group: "EXIT",       type: "number",  fmt: "int", min: 1,      max: 30,      step: 1, hint: "Years of NOI to model — auto-extends to hold if shorter"},
+  exit_cap_rate:               {label: "Exit cap rate",             group: "EXIT",         type: "number",  fmt: "%",  min: 0.04,    max: 0.15,    step: 0.0025},
+  sale_title_fee_pct:          {label: "Sale title fee %",          group: "EXIT",         type: "number",  fmt: "%",  min: 0,       max: 0.05,    step: 0.0025},
+};
+
+// ============================================================
+// 2A. DEFAULT TEMPLATE — neutral generic defaults for NEW deals.
+//     Templates are SEPARATE from real deal data. This template seeds a
+//     blank-ish commercial RE deal that the user fills in.
+// ============================================================
+
+const DEFAULT_TEMPLATE = {
+  template_id: "default_template",
+  template_name: "Default — Commercial RE (blank)",
+  immutable: true,   // Cannot be deleted, but can be duplicated.
+  defaults: {
+    deal_name:                "",
+    property_address_full:    "",
+    property_business_name:   "",
+    property_business_url:    "",
+    property_acres:           0,
+    closing_date:             "",
+    contact_name:             "",
+    contact_phone:            "",
+    contact_email:            "",
+
+    purchase_price:           1000000,
+    earnest_money:            25000,
+    reserve:                  25000,
+    title_fees:               2000,
+    loan_costs_fixed:         2000,
+    loan_costs_pct:           0.01,
+
+    loan_to_value:            0.80,
+    loan_interest_rate:       0.07,
+    loan_amortization_years:  25,
+
+    rent_year_1_monthly:      8000,
+    rent_annual_escalator:    0.03,
+    mgmt_fee_pct_of_rent:     0.04,
+    rm_annual:                0,
+    misc_annual:              5000,
+    property_tax_annual:      8000,
+    insurance_annual:         1500,
+    is_pure_nnn:              true,
+
+    hold_period_years:        5,
+    noi_projection_years:     10,
+    exit_cap_rate:            0.08,
+    sale_title_fee_pct:       0.01,
+
+    em_allocation_mode:       "dedicated",
+  },
+  group_totals: {},
+  team_seed: [
+    {name: "",  contribution: 0, ownership_pct: 0, equal_lock_group: null, is_auto_deduct: false, notes: ""},
+    {name: "",  contribution: 0, ownership_pct: 0, equal_lock_group: null, is_auto_deduct: false, notes: ""},
+    {name: "",  contribution: 0, ownership_pct: 0, equal_lock_group: null, is_auto_deduct: false, notes: ""},
+    {name: "",  contribution: 0, ownership_pct: 0, equal_lock_group: null, is_auto_deduct: false, notes: ""},
+  ],
+  questions_seed: [],
+  meta: {
+    noi_projection_years: 10,
+    autocomplete_provider: "nominatim",
+    google_places_api_key: "",
+  },
+};
+
+// ============================================================
+// 2B. MOAB EARLY v1 — REAL DEAL DATA (NOT a template).
+//     Pre-seeded as the FIRST SAVED VERSION on initial app launch.
+//     This is John's actual deal: 805 N Main, Moab — $1.225M strike,
+//     $9K rent, 80% LTV, 4×$70K + EM + JE 40%. Faithfully matches
+//     John Able's Moab Early Base case.
+// ============================================================
+
+const MOAB_EARLY_V1_DATA = {
+  state: {
+    deal_name:                "Moab Early — 805 N Main",
+    property_address_full:    "805 N Main St, Moab, UT 84532",
+    property_business_name:   "",
+    property_business_url:    "",
+    property_acres:           0.99,
+    closing_date:             "",
+    contact_name:             "John Able",
+    contact_phone:            "",
+    contact_email:            "",
+
+    purchase_price:           1225000,
+    earnest_money:            25000,
+    reserve:                  40000,
+    title_fees:               2000,
+    loan_costs_fixed:         2000,
+    loan_costs_pct:           0.01,
+
+    loan_to_value:            0.80,
+    loan_interest_rate:       0.075,
+    loan_amortization_years:  25,
+
+    rent_year_1_monthly:      9000,
+    rent_annual_escalator:    0.04,
+    mgmt_fee_pct_of_rent:     0.04,
+    rm_annual:                0,
+    misc_annual:              6000,
+    property_tax_annual:      11884,
+    insurance_annual:         1800,
+    is_pure_nnn:              true,
+
+    hold_period_years:        5,
+    noi_projection_years:     10,
+    exit_cap_rate:            0.08,
+    sale_title_fee_pct:       0.01,
+
+    em_allocation_mode:       "dedicated",
+
+    team_members: [
+      {name: "John A",            contribution: 70000, ownership_pct: 0.14, equal_lock_group: 1, is_auto_deduct: false, notes: ""},
+      {name: "Nell",              contribution: 70000, ownership_pct: 0.14, equal_lock_group: 1, is_auto_deduct: false, notes: ""},
+      {name: "John C",            contribution: 70000, ownership_pct: 0.14, equal_lock_group: 1, is_auto_deduct: false, notes: ""},
+      {name: "Steve",             contribution: 70000, ownership_pct: 0.14, equal_lock_group: 1, is_auto_deduct: false, notes: ""},
+      {name: "Earnest Money",     contribution: 20000, ownership_pct: 0.04, equal_lock_group: null, is_auto_deduct: false, notes: "Dedicated EM slot"},
+      {name: "John E (operator)", contribution: 0,     ownership_pct: 0.40, equal_lock_group: null, is_auto_deduct: true,  notes: "Auto-deduct: 100% − sum(others)"},
+    ],
+    group_totals: { "1": 0.56 },        // 4 members × 14% each in Group 1
+    questions: [
+      {id: "Q1", target: "John Able", text: "What is your preferred file naming convention for deal versions? E.g. client last name, first name, city of the deal, then 1-2 word deal description (warehouse, docks, strip-center, etc).", status: "open", answer: "", created_at: "2026-04-26"},
+      {id: "Q2", target: "John Able", text: "What do you call these variables in your own working language? (rent, cap rate, NOI, hold period, etc.) Using your terms makes the form read like you wrote it — and lays the foundation for natural-language agent form-filling later (see the greyed Claude icon top-left).", status: "open", answer: "", created_at: "2026-04-26"},
+    ],
+    meta: {
+      noi_projection_years: 10,
+      autocomplete_provider: "nominatim",
+      google_places_api_key: "",
+    },
+  },
+  version_label: "Moab Early v1",
+};
+
+// ============================================================
+// 3. STATE
+// ============================================================
+
+let state = null;        // Active deal state
+let computed = null;     // Derived outputs (recomputed on every change)
+let undoStack = [];
+let redoStack = [];
+let templates = [];      // User templates + built-in Base
+let activeDeal = null;   // {id, name} reference; null until first save
+let activeTab = "inputs";    // Default tab — Inputs is now the leftmost tab (260426)
+let suppressHistory = false;
+let toastTimer = null;
+
+// ============================================================
+// 4. UTILITIES
+// ============================================================
+
+function pmt(rate, nper, pv) {
+  // Standard mortgage PMT (returns positive monthly payment).
+  if (rate === 0) return -pv / nper;
+  return -(pv * rate) / (1 - Math.pow(1 + rate, -nper));
+}
+
+function fmt$(n, places) {
+  if (n === null || n === undefined || isNaN(n)) return "";
+  if (places === undefined) places = 0;
+  const neg = n < 0;
+  const abs = Math.abs(n);
+  const s = "$" + abs.toLocaleString("en-US", {minimumFractionDigits: places, maximumFractionDigits: places});
+  return neg ? `(${s})` : s;
+}
+
+function fmtPct(n, places) {
+  if (n === null || n === undefined || isNaN(n)) return "";
+  if (places === undefined) places = 2;
+  return (n * 100).toFixed(places) + "%";
+}
+
+function fmtNum(n) {
+  if (n === null || n === undefined || isNaN(n)) return "";
+  return Number(n).toLocaleString("en-US");
+}
+
+function todayISO() { return new Date().toISOString(); }
+
+// Derive a filename-safe short name from deal_name. Replaces "Deal short name"
+// field which was removed 260426 — no need to ask user to type two names.
+function getDealShortName(s) {
+  s = s || state || {};
+  const raw = (s.deal_short_name && String(s.deal_short_name).trim())
+            || (s.deal_name && String(s.deal_name).trim())
+            || "Deal";
+  return raw.replace(/[^a-zA-Z0-9_-]+/g, "_")
+            .replace(/^_+|_+$/g, "")
+            .slice(0, 60)
+            || "Deal";
+}
+
+function uuid() {
+  return "id-" + Math.random().toString(36).slice(2, 11) + "-" + Date.now().toString(36);
+}
+
+function el(tag, attrs, children) {
+  const e = document.createElement(tag);
+  if (attrs) for (const k in attrs) {
+    if (k === "className") e.className = attrs[k];
+    else if (k.startsWith("on") && typeof attrs[k] === "function") e.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+    else if (k === "html") e.innerHTML = attrs[k];
+    else if (k === "data") for (const dk in attrs[k]) e.dataset[dk] = attrs[k][dk];
+    else e.setAttribute(k, attrs[k]);
+  }
+  if (children) (Array.isArray(children) ? children : [children]).forEach(c => {
+    if (c === null || c === undefined) return;
+    if (typeof c === "string" || typeof c === "number") e.appendChild(document.createTextNode(c));
+    else e.appendChild(c);
+  });
+  return e;
+}
+
+function toast(msg, ms) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), ms || 1800);
+}
+
+// ============================================================
+// 5. COMPUTE GRAPH (cascading correctness — the #1 invariant)
+//    Pure function: state -> computed outputs.
+//    Called on EVERY mutation. Full re-run, no partial updates.
+// ============================================================
+
+function compute(s) {
+  const out = {};
+  // Defensive — clamp hold to ≥1 to avoid Year-N indexing into emptiness
+  const N = Math.max(1, Number(s.hold_period_years) || 5);
+  // Auto-extend NOI projection to cover hold (so Year-N is always modeled).
+  // Reads from state.noi_projection_years (top-level, since 260426 it's in
+  // Inputs/EXIT), falling back to legacy state.meta.noi_projection_years.
+  const projSetting = Number(s.noi_projection_years) || (s.meta && Number(s.meta.noi_projection_years)) || 10;
+  const proj = Math.max(projSetting, N);
+
+  // Loan
+  out.loan_amount = s.purchase_price * s.loan_to_value;
+  out.loan_costs_total = (s.purchase_price * s.loan_to_value * s.loan_costs_pct) + s.loan_costs_fixed;
+  out.monthly_payment = pmt(s.loan_interest_rate / 12, s.loan_amortization_years * 12, out.loan_amount);
+  out.annual_debt_service = out.monthly_payment * 12;
+  out.annual_principal_yr1 = out.annual_debt_service - (out.loan_amount * s.loan_interest_rate);
+  out.cum_principal_at_exit = out.annual_principal_yr1 * N;
+  out.equity_required = s.purchase_price + s.title_fees - s.earnest_money + out.loan_costs_total - out.loan_amount + s.reserve;
+
+  // NOI year-by-year (1..proj)
+  out.years = [];
+  for (let i = 1; i <= proj; i++) {
+    const monthly = s.rent_year_1_monthly * Math.pow(1 + s.rent_annual_escalator, i - 1);
+    const annual = monthly * 12;
+    const mgmt = annual * s.mgmt_fee_pct_of_rent;
+    const tax_ins = s.is_pure_nnn ? 0 : (s.property_tax_annual + s.insurance_annual);
+    const opex = mgmt + s.rm_annual + s.misc_annual + tax_ins;
+    const noi = annual - opex;
+    const cf = noi - out.annual_debt_service;
+    const value_at_cap = noi / s.exit_cap_rate;
+    out.years.push({
+      year: i,
+      monthly_rent: monthly,
+      annual_rent: annual,
+      mgmt: mgmt,
+      rm: s.rm_annual,
+      misc: s.misc_annual,
+      tax_ins: tax_ins,
+      opex: opex,
+      noi: noi,
+      cash_flow: cf,
+      value_at_cap: value_at_cap,
+      visible: i <= N,
+    });
+  }
+  // Year-N (exit year) — index N-1
+  const yN = out.years[N - 1] || out.years[out.years.length - 1];
+  out.exit_year = yN;
+  out.exit_year_noi = yN.noi;
+  out.exit_year_cash_flow = yN.cash_flow;
+
+  // Sale
+  out.sale_price = out.exit_year_noi / s.exit_cap_rate;
+  out.sale_title_fees = -out.sale_price * s.sale_title_fee_pct;
+  out.loan_payoff_at_exit = -(out.loan_amount - out.cum_principal_at_exit);
+  out.net_cash_to_llc = out.sale_price + out.sale_title_fees + out.loan_payoff_at_exit;
+  out.team_total_contribution = (s.team_members || []).reduce((a, m) => a + (Number(m.contribution) || 0), 0);
+  out.equity_returned = -out.team_total_contribution;
+  out.total_profit = out.net_cash_to_llc + out.equity_returned;
+
+  // === EFFECTIVE OWNERSHIP % per member (NEW group model 260426) ===
+  // Priority: auto-deduct > equal-lock-group total > stored ownership_pct.
+  // Members in a group share the group's total equally. The group's total
+  // is set explicitly via state.group_totals[gid]. Editing one member's %
+  // in a group is a no-op (read-only); the group total drives everyone.
+  const namedMembers = (s.team_members || []).filter(m => m.name && String(m.name).trim() !== "");
+  const groupCounts = {};
+  namedMembers.forEach(m => {
+    if (m.equal_lock_group) {
+      groupCounts[m.equal_lock_group] = (groupCounts[m.equal_lock_group] || 0) + 1;
+    }
+  });
+
+  // Pass 1: compute effective % for each non-auto-deduct member
+  const memberEffective = (s.team_members || []).map(m => {
+    if (!m.name || String(m.name).trim() === "") return 0;
+    if (m.is_auto_deduct) return null;        // filled in pass 2
+    if (m.equal_lock_group) {
+      const total = (s.group_totals || {})[m.equal_lock_group];
+      const cnt = groupCounts[m.equal_lock_group] || 0;
+      if (total != null && cnt > 0) return total / cnt;
+      return 0;                               // group has no total set yet
+    }
+    return Number(m.ownership_pct) || 0;
+  });
+
+  // Pass 2: auto-deduct member takes the remainder to make sum = 1
+  const adIdx = (s.team_members || []).findIndex(m => m.is_auto_deduct);
+  let committedSum = 0;
+  memberEffective.forEach(p => { if (p !== null) committedSum += p; });
+  if (adIdx >= 0) {
+    memberEffective[adIdx] = Math.max(0, 1 - committedSum);
+  }
+
+  // Cap stack constraint
+  out.team_total_pct = memberEffective.reduce((a, p) => a + (p || 0), 0);
+  out.cap_stack_ok = namedMembers.length > 0 && Math.abs(out.team_total_pct - 1) < 0.0005;
+
+  // Group telemetry for the renderer
+  out.group_counts = groupCounts;
+  out.group_totals = Object.assign({}, s.group_totals || {});
+  out.active_group_ids = Object.keys(groupCounts).map(Number).sort((a, b) => a - b);
+
+  // Per-investor distributions (uses EFFECTIVE %, not stored)
+  out.team_distributions = (s.team_members || []).map((m, i) => ({
+    name: m.name,
+    contribution: Number(m.contribution) || 0,
+    ownership_pct: memberEffective[i] || 0,
+    profit: (memberEffective[i] || 0) * out.total_profit,
+    total_return: (Number(m.contribution) || 0) + ((memberEffective[i] || 0) * out.total_profit),
+    is_grouped: !!m.equal_lock_group,
+    is_auto_deduct: !!m.is_auto_deduct,
+    group_id: m.equal_lock_group,
+    has_group_total: m.equal_lock_group ? (s.group_totals || {})[m.equal_lock_group] != null : false,
+  }));
+
+  // Header summary fields for Versions browser
+  out.team_member_count = (s.team_members || []).filter(m => m.name && m.name.trim() !== "").length;
+
+  return out;
+}
+
+// ============================================================
+// 6. STATE MUTATIONS (with undo / autosave / re-render)
+// ============================================================
+
+function setField(key, value, options) {
+  options = options || {};
+  const before = state[key];
+  // Coerce numbers
+  const meta = FIELDS[key];
+  if (meta && meta.type === "number") {
+    value = (value === "" || value === null) ? 0 : Number(value);
+  } else if (meta && meta.type === "boolean") {
+    value = (value === true || value === "true" || value === 1);
+  }
+  if (before === value) return;
+  if (!options.skipUndo) {
+    undoStack.push({type: "field", key: key, before: before, after: value, timestamp: Date.now()});
+    if (undoStack.length > 200) undoStack.shift();
+    redoStack = [];
+  }
+  state[key] = value;
+  state.last_edited_date = todayISO();
+  recompute();
+  autosave();
+  renderActiveTab();
+  updateUndoRedoUI();
+  refreshDealName();
+}
+
+function setTeamMember(idx, key, value, options) {
+  options = options || {};
+  const m = state.team_members[idx];
+  if (!m) return;
+  const before = m[key];
+  // Snapshot pre-change effective % (used when un-grouping: keeps the user
+  // from suddenly seeing 0% on a member they just removed from a group)
+  const beforeEffPct = (computed && computed.team_distributions && computed.team_distributions[idx])
+                       ? computed.team_distributions[idx].ownership_pct
+                       : Number(m.ownership_pct) || 0;
+  if (key === "contribution" || key === "ownership_pct") {
+    value = (value === "" || value === null) ? 0 : Number(value);
+  } else if (key === "is_auto_deduct") {
+    value = !!value;
+  }
+  if (before === value) return;
+
+  // Bidirectional $ ↔ % on independent rows (NOT grouped, NOT auto-deduct).
+  // Editing % auto-scales $; editing $ auto-scales %. Coupling = preserve
+  // the existing $-per-% ratio. If old value is 0, can't scale — leave the
+  // other field as-is for the user to fill in.
+  let coupledKey = null, coupledBefore, coupledAfter;
+  const isIndependent = !m.is_auto_deduct && (m.equal_lock_group == null || m.equal_lock_group === "");
+  if (isIndependent && (key === "ownership_pct" || key === "contribution")) {
+    if (key === "ownership_pct") {
+      const oldPct = Number(before) || 0;
+      const oldCash = Number(m.contribution) || 0;
+      if (oldPct > 0) {
+        const newCash = oldCash * (Number(value) / oldPct);
+        coupledKey = "contribution";
+        coupledBefore = m.contribution;
+        coupledAfter = newCash;
+      }
+    } else {  // key === "contribution"
+      const oldCash = Number(before) || 0;
+      const oldPct = Number(m.ownership_pct) || 0;
+      if (oldCash > 0) {
+        const newPct = oldPct * (Number(value) / oldCash);
+        coupledKey = "ownership_pct";
+        coupledBefore = m.ownership_pct;
+        coupledAfter = newPct;
+      }
+    }
+  }
+
+  if (!options.skipUndo) {
+    const desc = describeFieldChange(m, key, before, value);
+    undoStack.push({
+      type: "team", idx: idx, key: key, before: before, after: value,
+      coupled: coupledKey ? {key: coupledKey, before: coupledBefore, after: coupledAfter} : null,
+      description: desc,
+      timestamp: Date.now()
+    });
+    if (undoStack.length > 200) undoStack.shift();
+    redoStack = [];
+  }
+  m[key] = value;
+  if (coupledKey) m[coupledKey] = coupledAfter;
+
+  // NEW group model: editing a grouped member's ownership_pct is a no-op
+  // (the group total drives everyone in the group). The change still
+  // commits to state for if they later un-group, but compute() ignores it.
+  // Group totals are set via setGroupTotal() (separate field below the table).
+  if (key === "is_auto_deduct") {
+    if (value) {
+      // Turning ON: clear other auto-deduct flags (mutual exclusion)
+      state.team_members.forEach((mm, i) => { if (i !== idx) mm.is_auto_deduct = false; });
+    } else if (before) {
+      // Turning OFF: preserve the effective % onto m.ownership_pct so the
+      // member doesn't suddenly drop to 0% — they keep whatever auto-deduct
+      // had been giving them, now editable.
+      m.ownership_pct = beforeEffPct;
+    }
+  }
+
+  // Group transitions
+  if (key === "equal_lock_group") {
+    if (!state.group_totals) state.group_totals = {};
+    if (value) {
+      // Joining a group — seed group total if this is the first member
+      const gid = String(value);
+      if (state.group_totals[gid] == null) {
+        // Use the member's pre-grouping stored ownership_pct as the seed total
+        // (so a 5% member joining group 5 gives group_totals[5] = 5%, splittable
+        // among future members).
+        state.group_totals[gid] = Number(m.ownership_pct) || 0;
+      }
+    } else if (before) {
+      // Leaving a group — preserve the effective % so the user has a sensible
+      // starting point on the now-editable individual % field.
+      m.ownership_pct = beforeEffPct;
+    }
+  }
+
+  state.last_edited_date = todayISO();
+  recompute();
+  autosave();
+  renderActiveTab();
+  updateUndoRedoUI();
+}
+
+// New: edit a group total (the field below the team table)
+function setGroupTotal(groupId, value) {
+  if (!state.group_totals) state.group_totals = {};
+  value = (value === "" || value === null) ? 0 : Number(value);
+  if (isNaN(value)) value = 0;
+  value = Math.max(0, Math.min(1, value));
+  const before = state.group_totals[groupId];
+  if (before === value) return;
+  undoStack.push({
+    type: "group_total", groupId: groupId, before: before, after: value,
+    description: "set Group " + groupId + " total to " + fmtPct(value),
+    timestamp: Date.now()
+  });
+  if (undoStack.length > 200) undoStack.shift();
+  redoStack = [];
+  state.group_totals[groupId] = value;
+  state.last_edited_date = todayISO();
+  recompute();
+  autosave();
+  renderActiveTab();
+  updateUndoRedoUI();
+}
+
+// Build a human-readable description of an undoable team-member change.
+// Used for the descriptive tooltips on the persistent Undo / Redo buttons.
+function describeFieldChange(member, key, before, after) {
+  const memberName = (member && member.name && String(member.name).trim()) || "(unnamed)";
+  if (key === "contribution") {
+    return "edit " + memberName + " contribution (" + fmt$(Number(before) || 0) + " → " + fmt$(Number(after) || 0) + ")";
+  }
+  if (key === "ownership_pct") {
+    return "edit " + memberName + " ownership % (" + fmtPct(Number(before) || 0) + " → " + fmtPct(Number(after) || 0) + ")";
+  }
+  if (key === "name") {
+    return "rename " + (before || "(empty)") + " → " + (after || "(empty)");
+  }
+  if (key === "equal_lock_group") {
+    return memberName + ": group " + (before == null || before === "" ? "—" : before) + " → " + (after == null || after === "" ? "—" : after);
+  }
+  if (key === "is_auto_deduct") {
+    return (after ? "set " : "unset ") + memberName + " auto-deduct";
+  }
+  if (key === "notes") {
+    return "edit " + memberName + " notes";
+  }
+  return "edit " + memberName + " " + key;
+}
+
+// (rebalanceEqualLockGroup removed 260426 — group totals are now explicit
+//  via state.group_totals; compute() derives per-member ownership.)
+// (applyAutoDeduct removed — compute() now handles auto-deduct in pass 2.)
+function applyAutoDeduct() { /* no-op — handled inside compute() */ }
+
+function recompute() { computed = compute(state); }
+
+// ============================================================
+// 7. UNDO / REDO
+// ============================================================
+
+function undo() {
+  if (undoStack.length === 0) return;
+  const action = undoStack.pop();
+  redoStack.push(action);
+  applyAction(action, "before");
+  state.last_edited_date = todayISO();
+  recompute();
+  autosave();
+  renderActiveTab();
+  updateUndoRedoUI();
+  toast("Undone");
+}
+
+function redo() {
+  if (redoStack.length === 0) return;
+  const action = redoStack.pop();
+  undoStack.push(action);
+  applyAction(action, "after");
+  state.last_edited_date = todayISO();
+  recompute();
+  autosave();
+  renderActiveTab();
+  updateUndoRedoUI();
+  toast("Redone");
+}
+
+function applyAction(a, dir) {
+  const v = a[dir];
+  if (a.type === "field") state[a.key] = v;
+  else if (a.type === "team") {
+    state.team_members[a.idx][a.key] = v;
+    // Replay coupled $/% if recorded
+    if (a.coupled) {
+      state.team_members[a.idx][a.coupled.key] = a.coupled[dir];
+    }
+  } else if (a.type === "group_total") {
+    if (!state.group_totals) state.group_totals = {};
+    state.group_totals[a.groupId] = v;
+  } else if (a.type === "team_add") {
+    if (dir === "after") state.team_members.push(a.member);
+    else state.team_members.pop();
+  } else if (a.type === "team_remove") {
+    if (dir === "after") state.team_members.splice(a.idx, 1);
+    else state.team_members.splice(a.idx, 0, a.member);
+  }
+}
+
+function updateUndoRedoUI() {
+  const undoBtn = document.getElementById("undoBtn");
+  const redoBtn = document.getElementById("redoBtn");
+  if (!undoBtn || !redoBtn) return;
+  undoBtn.disabled = undoStack.length === 0;
+  redoBtn.disabled = redoStack.length === 0;
+  // Descriptive tooltips: show what action will be undone / redone next
+  const lastUndo = undoStack[undoStack.length - 1];
+  const lastRedo = redoStack[redoStack.length - 1];
+  undoBtn.title = lastUndo
+    ? "Undo: " + (lastUndo.description || lastUndo.key || "last change") + "  (Cmd+Z)"
+    : "Nothing to undo";
+  redoBtn.title = lastRedo
+    ? "Redo: " + (lastRedo.description || lastRedo.key || "last undo") + "  (Cmd+Shift+Z)"
+    : "Nothing to redo";
+  undoBtn.setAttribute("data-tip", undoBtn.title);
+  redoBtn.setAttribute("data-tip", redoBtn.title);
+}
+
+// ============================================================
+// 8. AUTOSAVE / RESTORE (IndexedDB)
+// ============================================================
+
+const DB_NAME = "moab_early_app";
+const DB_VERSION = 1;
+let db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const r = indexedDB.open(DB_NAME, DB_VERSION);
+    r.onupgradeneeded = (e) => {
+      const _db = e.target.result;
+      if (!_db.objectStoreNames.contains("autosave"))   _db.createObjectStore("autosave", {keyPath: "id"});
+      if (!_db.objectStoreNames.contains("templates"))  _db.createObjectStore("templates", {keyPath: "template_id"});
+      if (!_db.objectStoreNames.contains("versions"))   _db.createObjectStore("versions", {keyPath: "version_id"});
+    };
+    r.onsuccess = (e) => { db = e.target.result; resolve(db); };
+    r.onerror = (e) => reject(e);
+  });
+}
+
+function tx(store, mode) {
+  return db.transaction(store, mode || "readonly").objectStore(store);
+}
+
+function dbPut(store, value) {
+  return new Promise((resolve, reject) => {
+    const r = tx(store, "readwrite").put(value);
+    r.onsuccess = () => resolve();
+    r.onerror = (e) => reject(e);
+  });
+}
+function dbGet(store, key) {
+  return new Promise((resolve) => {
+    const r = tx(store).get(key);
+    r.onsuccess = (e) => resolve(e.target.result);
+    r.onerror = () => resolve(null);
+  });
+}
+function dbAll(store) {
+  return new Promise((resolve) => {
+    const r = tx(store).getAll();
+    r.onsuccess = (e) => resolve(e.target.result || []);
+    r.onerror = () => resolve([]);
+  });
+}
+function dbDel(store, key) {
+  return new Promise((resolve) => {
+    const r = tx(store, "readwrite").delete(key);
+    r.onsuccess = () => resolve();
+    r.onerror = () => resolve();
+  });
+}
+
+let autosaveTimer = null;
+function autosave() {
+  if (autosaveTimer) clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(async () => {
+    try {
+      const payload = {id: "current_draft", state: state, saved_at: todayISO(), tab_id: TAB_ID};
+      await dbPut("autosave", payload);
+      // Notify other tabs (so they can warn before stomping)
+      if (_bc) try { _bc.postMessage({type: "autosave", from: TAB_ID, at: payload.saved_at}); } catch (e) {}
+    } catch (e) { console.warn("autosave failed", e); }
+  }, 400);
+}
+
+// Multi-tab coordination — at most one tab actively editing.
+const TAB_ID = "tab-" + Math.random().toString(36).slice(2, 9);
+let _bc = null;
+function bindBroadcastChannel() {
+  if (typeof BroadcastChannel === "undefined") return;
+  try {
+    _bc = new BroadcastChannel("moab_early_sync");
+    _bc.onmessage = (ev) => {
+      if (!ev.data || ev.data.from === TAB_ID) return;
+      if (ev.data.type === "autosave") {
+        // Another tab just wrote autosave — warn user once.
+        if (!window._abcoMultitabWarned) {
+          window._abcoMultitabWarned = true;
+          toast("Heads up: another tab is editing the same app. Saves may overwrite each other.", 5000);
+        }
+      }
+    };
+  } catch (e) { console.warn("BroadcastChannel unavailable:", e); }
+}
+
+async function loadAutosave() {
+  const r = await dbGet("autosave", "current_draft");
+  if (r && r.state) return r.state;
+  return null;
+}
+
+// Save before unload — captures any uncommitted edits
+window.addEventListener("beforeunload", () => {
+  // Sync write — best-effort
+  try {
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    const s = JSON.stringify(state);
+    // IndexedDB writes are async; can't block beforeunload reliably.
+    // But the autosave timer (400ms) typically already wrote the latest.
+    // Flush via a final put:
+    if (db) {
+      tx("autosave", "readwrite").put({id: "current_draft", state: state, saved_at: todayISO()});
+    }
+  } catch (e) {}
+});
+
+// ============================================================
+// 9. TEMPLATES
+// ============================================================
+
+async function loadTemplates() {
+  const stored = await dbAll("templates");
+  templates = [DEFAULT_TEMPLATE, ...stored.filter(t => t.template_id !== DEFAULT_TEMPLATE.template_id)];
+}
+
+function getLastUsedTemplate() {
+  const lastId = localStorage.getItem("moab_last_used_template");
+  return templates.find(t => t.template_id === lastId) || DEFAULT_TEMPLATE;
+}
+
+function setLastUsedTemplate(id) {
+  localStorage.setItem("moab_last_used_template", id);
+}
+
+// Returns the user-set DEFAULT template (preferred) or last-used as fallback.
+// Settings/Templates UI's "Default?" radio writes to localStorage.moab_default_template;
+// New Deal modal opens with this preselected.
+function getPreferredTemplate() {
+  const defaultId = localStorage.getItem("moab_default_template");
+  if (defaultId) {
+    const t = templates.find(tt => tt.template_id === defaultId);
+    if (t) return t;
+  }
+  return getLastUsedTemplate();
+}
+
+async function saveTemplate(t) {
+  if (!t.template_id) t.template_id = uuid();
+  if (t.template_id === DEFAULT_TEMPLATE.template_id) {
+    toast("Cannot overwrite Base template — duplicate it first.");
+    return;
+  }
+  await dbPut("templates", t);
+  await loadTemplates();
+  toast("Template saved");
+}
+
+async function deleteTemplate(id) {
+  if (id === DEFAULT_TEMPLATE.template_id) {
+    toast("Cannot delete Base template");
+    return;
+  }
+  await dbDel("templates", id);
+  await loadTemplates();
+  toast("Template deleted");
+}
+
+function newDealFromTemplate(t) {
+  const s = JSON.parse(JSON.stringify(t.defaults));
+  s.team_members = JSON.parse(JSON.stringify(t.team_seed));
+  s.questions    = JSON.parse(JSON.stringify(t.questions_seed || []));
+  s.meta         = JSON.parse(JSON.stringify(t.meta || {noi_projection_years: 10, autocomplete_provider: "nominatim", google_places_api_key: ""}));
+  s.group_totals = JSON.parse(JSON.stringify(t.group_totals || {}));
+  s.deal_id      = uuid();
+  s.created_at   = todayISO();
+  s.last_edited_date = todayISO();
+  s.template_used = t.template_id;
+  return s;
+}
+
+// Migrate legacy state: derive group_totals from current member ownership_pct
+// when the field is missing or empty. Used at boot + version load to recover
+// from the pre-260426 group bug where individual member %s drifted.
+function migrateGroupTotals(s) {
+  if (!s) return;
+  if (!s.group_totals || typeof s.group_totals !== "object") s.group_totals = {};
+  const sums = {};
+  (s.team_members || []).forEach(m => {
+    if (m.equal_lock_group) {
+      const g = String(m.equal_lock_group);
+      sums[g] = (sums[g] || 0) + (Number(m.ownership_pct) || 0);
+    }
+  });
+  Object.keys(sums).forEach(g => {
+    if (s.group_totals[g] == null) s.group_totals[g] = sums[g];
+  });
+}
+
+// Pre-seed the user's actual deal "Moab Early v1" as the first saved version
+// (only on first launch when no versions exist yet).
+async function seedMoabEarlyV1IfFirstRun() {
+  const versions = await dbAll("versions");
+  if (versions.length > 0) return null;   // Already seeded
+
+  const realState = JSON.parse(JSON.stringify(MOAB_EARLY_V1_DATA.state));
+  realState.deal_id = uuid();
+  realState.created_at = "2026-04-26T00:00:00.000Z";
+  realState.last_edited_date = "2026-04-26T00:00:00.000Z";
+
+  const v = {
+    version_id: uuid(),
+    deal_id: realState.deal_id,
+    deal_short_name: getDealShortName(realState),
+    saved_at: realState.created_at,
+    parent_version_id: null,
+    state: realState,
+    manual_changes: [],
+    label: MOAB_EARLY_V1_DATA.version_label,
+  };
+  await dbPut("versions", v);
+  return realState;
+}
+
+// ============================================================
+// 10. VERSION SAVE  (Phase 5 will wire xlsx + File System Access; v1 stores in IndexedDB)
+// ============================================================
+
+async function saveVersion() {
+  // Defensive — saveVersion may fire from keyboard before init completes
+  if (!state || !computed) {
+    toast("App still loading — try again in a moment");
+    return;
+  }
+  // Cap-stack constraint REMOVED 260426 — Save now allowed at any total.
+  // The Investor Team tab shows the sum prominently (red when ≠ 100%).
+  // This save just records the state as-is.
+
+  const v = {
+    version_id: uuid(),
+    deal_id:    state.deal_id,
+    deal_short_name: getDealShortName(state),
+    saved_at:   todayISO(),
+    parent_version_id: state.last_version_id || null,
+    state:      JSON.parse(JSON.stringify(state)),
+    manual_changes: deriveManualChanges(),
+  };
+  await dbPut("versions", v);
+  state.last_version_id = v.version_id;
+  state.last_saved_at   = v.saved_at;
+  await dbPut("autosave", {id: "current_draft", state: state, saved_at: todayISO()});
+  // Toast reflects whether cap stack is balanced — no longer blocks save
+  const dealLabel = state.deal_name || v.deal_short_name || "deal";
+  if (computed.cap_stack_ok) {
+    toast(`Saved “${dealLabel}” version`);
+  } else {
+    toast(`Saved “${dealLabel}” at ${fmtPct(computed.team_total_pct)} cap stack`, 3500);
+  }
+
+  // Additive: export xlsx snapshot to adjacent folder (Chromium FSA) or download (Safari/iOS).
+  // Internal save above already happened; this is the audit/share layer.
+  // Failures are non-fatal — the version is safe in IndexedDB regardless.
+  if (state.meta && state.meta.skip_xlsx_export) {
+    // user opted out via Settings (Phase 5+ adds toggle)
+  } else {
+    try {
+      await exportXlsxSnapshot({silent: false});
+    } catch (e) {
+      console.warn("xlsx export error (version still saved internally):", e);
+      toast("Saved internally — xlsx export skipped");
+    }
+  }
+
+  if (activeTab === "versions") renderActiveTab();
+}
+
+function deriveManualChanges() {
+  // Diff state vs the last saved version. v1 = list of {key, before, after} from the recent undoStack since last save.
+  // Simpler approach: reset undoStack after save and report the entries since last save.
+  // For v1, we report the latest 30 distinct undo entries.
+  const seen = new Set();
+  const out = [];
+  for (let i = undoStack.length - 1; i >= 0 && out.length < 30; i--) {
+    const a = undoStack[i];
+    const tag = a.type === "field" ? a.key : `team[${a.idx}].${a.key}`;
+    if (seen.has(tag)) continue;
+    seen.add(tag);
+    out.push({field_key: tag, before: a.before, after: a.after});
+  }
+  return out.reverse();
+}
+
+async function listVersions() {
+  return await dbAll("versions");
+}
+
+async function loadVersion(versionId) {
+  const all = await dbAll("versions");
+  const v = all.find(x => x.version_id === versionId);
+  if (!v) return;
+  // Guard against silent loss of unsaved edits
+  if (undoStack.length > 0) {
+    const ok = confirm("You have " + undoStack.length + " unsaved edits in the current deal. Loading another version will discard them. Continue?");
+    if (!ok) return;
+  }
+  state = JSON.parse(JSON.stringify(v.state));
+  // Backfill any missing FIELDS keys (older schemas)
+  Object.keys(FIELDS).forEach(k => {
+    if (state[k] === undefined || state[k] === null) {
+      state[k] = DEFAULT_TEMPLATE.defaults[k];
+    }
+  });
+  migrateGroupTotals(state);
+  state.last_version_id = v.version_id;
+  recompute();
+  undoStack = [];
+  redoStack = [];
+  await dbPut("autosave", {id: "current_draft", state: state, saved_at: todayISO()});
+  renderActiveTab();
+  refreshDealName();
+  updateUndoRedoUI();
+  toast(`Loaded ${(v.state && v.state.deal_name) || v.deal_short_name || "deal"}`);
+}
+
+// ============================================================
+// 11. RENDERING — TABS
+// ============================================================
+
+function renderActiveTab() {
+  document.querySelectorAll("section.tab-content").forEach(s => {
+    if (s.hasAttribute("hidden")) return;     // skip permanently-hidden sections (modal targets)
+    s.classList.toggle("active", s.dataset.tab === activeTab);
+  });
+  document.querySelectorAll(".tabs button").forEach(b => {
+    b.classList.toggle("active", b.dataset.tab === activeTab);
+  });
+  switch (activeTab) {
+    case "summary":     renderSummary();     break;
+    case "inputs":      renderInputs();      break;
+    case "noi":         renderNOI();         break;
+    case "team":        renderTeam();        break;
+    case "sale":        renderSale();        break;
+    // legacy tab values — bounce back to summary if a stale hash points at a removed tab
+    case "sensitivity":
+    case "charts":
+    case "questions":
+    case "versions":
+    case "readme":
+      activeTab = "summary";
+      renderSummary();
+      break;
+  }
+}
+
+// Render adapters — let the existing render* functions write into a target
+// element other than their default. Used by the modal-conversion (Deals,
+// Feedback, Sensitivity, Charts).
+
+function renderVersionsInto(targetEl) {
+  // Temporarily redirect by id-swap: rename the modal body's id so renderVersions
+  // (which uses getElementById("versionsBody")) writes there.
+  const origId = targetEl.id;
+  targetEl.id = "versionsBody";
+  const oldHidden = document.querySelector('section[data-tab="versions"]');
+  const oldHiddenBody = oldHidden ? oldHidden.querySelector("div") : null;
+  const oldHiddenBodyId = oldHiddenBody ? oldHiddenBody.id : null;
+  if (oldHiddenBody) oldHiddenBody.id = "_versionsBody_stash";
+  try { renderVersions(); } finally {
+    targetEl.id = origId;
+    if (oldHiddenBody) oldHiddenBody.id = oldHiddenBodyId;
+  }
+}
+
+function renderQuestionsInto(targetEl) {
+  const origId = targetEl.id;
+  targetEl.id = "questionsBody";
+  const stash = document.querySelector('section[data-tab="questions"] div');
+  const stashId = stash ? stash.id : null;
+  if (stash) stash.id = "_questionsBody_stash";
+  try { renderQuestions(); } finally {
+    targetEl.id = origId;
+    if (stash) stash.id = stashId;
+  }
+}
+
+function renderSensitivityInto(targetEl) {
+  const origId = targetEl.id;
+  targetEl.id = "sensBody";
+  const stash = document.querySelector('section[data-tab="sensitivity"] div');
+  const stashId = stash ? stash.id : null;
+  if (stash) stash.id = "_sensBody_stash";
+  try { renderSensitivity(); } finally {
+    targetEl.id = origId;
+    if (stash) stash.id = stashId;
+  }
+}
+
+function renderChartsInto(targetEl) {
+  const origId = targetEl.id;
+  targetEl.id = "chartsBody";
+  const stash = document.querySelector('section[data-tab="charts"] div');
+  const stashId = stash ? stash.id : null;
+  if (stash) stash.id = "_chartsBody_stash";
+  try { renderCharts(); } finally {
+    targetEl.id = origId;
+    if (stash) stash.id = stashId;
+  }
+}
+
+function refreshDealName() {
+  // Title format per user request: just the deal name (which already includes
+  // "Moab Early — 805 N Main"). Don't append city/state/zip.
+  const text = state.deal_name || "(unnamed deal)";
+  const desktopEl = document.getElementById("dealNameDisplay");
+  const mobileEl  = document.getElementById("mobileDealName");
+  if (desktopEl) desktopEl.textContent = text;
+  if (mobileEl)  mobileEl.textContent  = text;
+}
+
+// ----- SUMMARY -----
+function renderSummary() {
+  const c = computed;
+  const rows = [
+    ["Purchase price",                  fmt$(state.purchase_price), false],
+    ["Loan amount (LTV)",               fmt$(c.loan_amount), false],
+    ["Equity required at close",        fmt$(c.equity_required), true],
+    ["Earnest money",                   fmt$(state.earnest_money), false],
+    ["Reserve",                         fmt$(state.reserve), false],
+    ["Year 1 rent (monthly)",           fmt$(state.rent_year_1_monthly), false],
+    ["Annual rent escalator",           fmtPct(state.rent_annual_escalator), false],
+    ["Hold period",                     state.hold_period_years + " yrs", false],
+    ["Loan rate",                       fmtPct(state.loan_interest_rate, 3), false],
+    ["Loan amortization",               state.loan_amortization_years + " yrs", false],
+    ["Monthly payment",                 fmt$(c.monthly_payment, 2), false],
+    ["Year 1 NOI",                      fmt$(c.years[0] && c.years[0].noi), true],
+    ["Year 1 cash flow (after debt)",   fmt$(c.years[0] && c.years[0].cash_flow), true],
+    ["Year-N NOI (at hold)",            fmt$(c.exit_year_noi), true],
+    ["Year-N sale value (at exit cap)", fmt$(c.sale_price), true],
+    ["Year-N total profit",             fmt$(c.total_profit), true],
+    ["Cap stack sum",                   fmtPct(c.team_total_pct), c.cap_stack_ok],
+  ];
+  const kv = el("div", {className: "kv"});
+  rows.forEach(r => {
+    kv.appendChild(el("div", {className: "kv-label"}, r[0]));
+    kv.appendChild(el("div", {className: "kv-value " + (r[2] ? "output" : "")}, r[1]));
+    kv.appendChild(el("div", {className: "kv-hint"}, ""));
+  });
+  const body = document.getElementById("summaryBody");
+  body.innerHTML = "";
+  body.appendChild(kv);
+
+  // Per-investor distribution summary
+  body.appendChild(el("h3", null, "Distribution at exit"));
+  const tbl = el("table", {className: "grid"});
+  const thead = el("thead", null, el("tr", null, [
+    el("th", null, "Member"),
+    el("th", null, "Contribution"),
+    el("th", null, "% of equity"),
+    el("th", null, "Profit at exit"),
+    el("th", null, "Total return"),
+  ]));
+  tbl.appendChild(thead);
+  const tbody = el("tbody");
+  c.team_distributions.forEach(d => {
+    if (!d.name) return;
+    tbody.appendChild(el("tr", null, [
+      el("td", {className: "label"}, d.name),
+      el("td", {className: "num"}, fmt$(d.contribution)),
+      el("td", {className: "num"}, fmtPct(d.ownership_pct)),
+      el("td", {className: "num output"}, fmt$(d.profit)),
+      el("td", {className: "num"}, fmt$(d.total_return)),
+    ]));
+  });
+  tbl.appendChild(tbody);
+  body.appendChild(tbl);
+}
+
+// ----- INPUTS -----
+
+// Per-user preference: which Inputs sections are collapsed. Persisted in
+// localStorage so it survives reloads (default: all expanded).
+function getCollapsedSections() {
+  try { return JSON.parse(localStorage.getItem("abco_collapsed_sections") || "{}"); }
+  catch (e) { return {}; }
+}
+function toggleCollapsedSection(sectionLabel) {
+  const map = getCollapsedSections();
+  map[sectionLabel] = !map[sectionLabel];
+  localStorage.setItem("abco_collapsed_sections", JSON.stringify(map));
+  renderActiveTab();
+}
+
+function renderInputs() {
+  const body = document.getElementById("inputsBody");
+  body.innerHTML = "";
+  const groups = {};
+  Object.keys(FIELDS).forEach(k => {
+    const f = FIELDS[k];
+    if (!groups[f.group]) groups[f.group] = [];
+    groups[f.group].push(k);
+  });
+  const collapsedMap = getCollapsedSections();
+  Object.keys(groups).forEach(g => {
+    const isCollapsed = collapsedMap[g] === true;
+    const kv = el("div", {className: "kv" + (isCollapsed ? " collapsed" : "")});
+
+    // Section header — clickable, with chevron showing expand/collapse state
+    const header = el("div", {className: "kv-section collapsible"});
+    header.appendChild(el("span", {className: "chev"}, "▼"));
+    header.appendChild(el("span", null, g));
+    header.addEventListener("click", () => toggleCollapsedSection(g));
+    kv.appendChild(header);
+
+    groups[g].forEach(k => {
+      const f = FIELDS[k];
+      kv.appendChild(el("div", {className: "kv-label"}, f.label));
+      // Tag the value cell with .money or .pct so the CSS adds $ / % markers.
+      const valClasses = ["kv-value"];
+      if (f.fmt === "$") valClasses.push("money");
+      else if (f.fmt === "%") valClasses.push("pct");
+      const valDiv = el("div", {className: valClasses.join(" ")});
+      valDiv.appendChild(buildInputControl(k, f));
+      kv.appendChild(valDiv);
+      kv.appendChild(el("div", {className: "kv-hint"}, f.hint || ""));
+    });
+    body.appendChild(kv);
+  });
+  body.appendChild(el("p", {className: "kv-hint", style: "margin-top: 14px; max-width: 620px;"},
+    "Yellow cells = editable. Click any section header above to collapse/expand. Edits cascade to every other tab in the same render frame."));
+}
+
+function buildInputControl(key, f) {
+  const v = state[key];
+  if (f.type === "select") {
+    const sel = el("select");
+    f.options.forEach(o => {
+      const opt = el("option", {value: o}, String(o));
+      if (String(v) === String(o)) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener("change", () => setField(key, sel.value));
+    return sel;
+  }
+  if (f.type === "boolean") {
+    const sel = el("select");
+    [["true","TRUE"],["false","FALSE"]].forEach(o => {
+      const opt = el("option", {value: o[0]}, o[1]);
+      if (String(v) === o[0] || (v === true && o[0] === "true") || (v === false && o[0] === "false")) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener("change", () => setField(key, sel.value === "true"));
+    return sel;
+  }
+  // number / string
+  const input = el("input", {type: f.type === "number" ? "number" : "text"});
+  input.dataset.field = key;
+  if (f.type === "number") {
+    if (f.min !== undefined) input.min = f.min;
+    if (f.max !== undefined) input.max = f.max;
+    if (f.step !== undefined) input.step = f.step;
+    input.value = v == null ? "" : String(v);
+  } else {
+    input.value = v == null ? "" : String(v);
+  }
+  input.addEventListener("change", () => setField(key, input.value));
+  return input;
+}
+
+// ============================================================
+// 11B. ADDRESS AUTOCOMPLETE (Nominatim default — no API key, no signin)
+// ============================================================
+
+let _addrTimer = null;
+let _addrCtrl = null;
+let _addrDropdown = null;
+
+function ensureAddrDropdown() {
+  if (_addrDropdown) return _addrDropdown;
+  _addrDropdown = document.createElement("div");
+  _addrDropdown.className = "autocomplete-dropdown";
+  _addrDropdown.style.display = "none";
+  document.body.appendChild(_addrDropdown);
+  return _addrDropdown;
+}
+
+function hideAddrDropdown() {
+  if (_addrDropdown) _addrDropdown.style.display = "none";
+}
+
+function positionAddrDropdown(input) {
+  const dd = ensureAddrDropdown();
+  const r = input.getBoundingClientRect();
+  dd.style.left = r.left + "px";
+  dd.style.top = (r.bottom + 4) + "px";
+  dd.style.minWidth = Math.max(280, r.width) + "px";
+}
+
+async function nominatimSearch(q, signal) {
+  // Free OSM geocoder. ~1 req/sec policy; we debounce 600ms.
+  const url = "https://nominatim.openstreetmap.org/search?" +
+              "q=" + encodeURIComponent(q) +
+              "&format=json&countrycodes=us&limit=5&addressdetails=1&extratags=1";
+  const r = await fetch(url, {signal: signal, headers: {"Accept-Language": "en"}});
+  if (!r.ok) throw new Error("Nominatim " + r.status);
+  return await r.json();
+}
+
+function pickAddressResult(input, res) {
+  const display = res.display_name || "";
+  state.property_address_full = display;
+  // Try to derive a sensible business name + URL.
+  const a = res.address || {};
+  const tags = res.extratags || {};
+  // Building name / business heuristic
+  const bizCandidate = a.amenity || a.shop || a.tourism || a.office || a.building || tags.name;
+  if (bizCandidate && typeof bizCandidate === "string" && !state.property_business_name) {
+    state.property_business_name = bizCandidate;
+  }
+  if (tags.website && !state.property_business_url) {
+    state.property_business_url = tags.website;
+  }
+  // Update lat/lon if we ever store them
+  state.last_edited_date = todayISO();
+  recompute();
+  autosave();
+  renderActiveTab();
+  hideAddrDropdown();
+  toast("Address set");
+}
+
+function attachAddressAutocomplete(input) {
+  if (input._abcoBound) return;     // idempotent
+  input._abcoBound = true;
+
+  input.addEventListener("input", () => {
+    clearTimeout(_addrTimer);
+    if (_addrCtrl) { try { _addrCtrl.abort(); } catch (e) {} }
+    const q = input.value.trim();
+    const dd = ensureAddrDropdown();
+    if (q.length < 4) { hideAddrDropdown(); return; }
+    positionAddrDropdown(input);
+    dd.innerHTML = "<div class='searching'>Searching…</div>";
+    dd.style.display = "block";
+    _addrTimer = setTimeout(async () => {
+      try {
+        _addrCtrl = new AbortController();
+        const results = await nominatimSearch(q, _addrCtrl.signal);
+        if (input.value.trim() !== q) return;          // stale, user kept typing
+        if (!results || results.length === 0) {
+          dd.innerHTML = "<div class='empty'>No matches. Try adding city or state.</div>";
+          return;
+        }
+        dd.innerHTML = "";
+        results.forEach(res => {
+          const item = document.createElement("div");
+          item.className = "item";
+          const a = res.address || {};
+          const biz = a.amenity || a.shop || a.tourism || a.office || a.building;
+          if (biz) {
+            const span1 = document.createElement("span");
+            span1.className = "biz";
+            span1.textContent = biz;
+            item.appendChild(span1);
+          }
+          const span2 = document.createElement("span");
+          span2.className = "addr";
+          span2.textContent = res.display_name;
+          item.appendChild(span2);
+          // mousedown fires before blur — keeps the input focused when picking
+          item.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            pickAddressResult(input, res);
+          });
+          // touchstart for mobile
+          item.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            pickAddressResult(input, res);
+          }, {passive: false});
+          dd.appendChild(item);
+        });
+      } catch (e) {
+        if (e.name !== "AbortError") {
+          dd.innerHTML = "<div class='empty'>Search failed: " + (e.message || e) + ". Type address manually and tab out to save.</div>";
+        }
+      }
+    }, 600);
+  });
+
+  input.addEventListener("focus", () => {
+    if (input.value.trim().length >= 4) positionAddrDropdown(input);
+  });
+  input.addEventListener("blur", () => {
+    // Cancel any in-flight Nominatim request and pending debounce timer
+    clearTimeout(_addrTimer);
+    if (_addrCtrl) { try { _addrCtrl.abort(); } catch (e) {} }
+    setTimeout(hideAddrDropdown, 200);  // allow mousedown on item to fire first
+  });
+}
+
+function bindAddressAutocompleteForActiveTab() {
+  if (activeTab !== "inputs") return;
+  const input = document.querySelector('section[data-tab="inputs"] input[data-field="property_address_full"]');
+  if (input) attachAddressAutocomplete(input);
+}
+
+// ============================================================
+// 11C. XLSX EXPORT (SheetJS via FSA API → download fallback)
+// ============================================================
+
+function buildXlsxFromState() {
+  if (typeof XLSX === "undefined") return null;
+  const wb = XLSX.utils.book_new();
+
+  // Inputs sheet
+  const inputsAOA = [["Field Key", "Label", "Value", "Group"]];
+  Object.keys(FIELDS).forEach(k => {
+    const f = FIELDS[k];
+    inputsAOA.push([k, f.label, state[k], f.group]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(inputsAOA), "Inputs");
+
+  // Investor Team sheet
+  const teamAOA = [["#", "Name", "Contribution", "Ownership %", "Group", "Auto-deduct?", "Notes"]];
+  state.team_members.forEach((m, i) => {
+    teamAOA.push([
+      i + 1,
+      m.name || "",
+      Number(m.contribution) || 0,
+      Number(m.ownership_pct) || 0,
+      m.equal_lock_group == null ? "" : m.equal_lock_group,
+      m.is_auto_deduct ? "yes" : "",
+      m.notes || ""
+    ]);
+  });
+  teamAOA.push([]);
+  teamAOA.push(["", "TOTAL", computed.team_total_contribution, computed.team_total_pct, "", "", ""]);
+  teamAOA.push(["", "Cap stack 100%?", "", computed.cap_stack_ok ? "YES" : "NO", "", "", ""]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(teamAOA), "Investor Team");
+
+  // NOI sheet
+  const visYears = computed.years.filter(y => y.visible);
+  const noiAOA = [
+    [""].concat(visYears.map(y => "Yr " + y.year)),
+    ["Monthly rent"].concat(visYears.map(y => y.monthly_rent)),
+    ["Annual rent"].concat(visYears.map(y => y.annual_rent)),
+    ["Mgmt fee"].concat(visYears.map(y => y.mgmt)),
+    ["R&M"].concat(visYears.map(y => y.rm)),
+    ["Misc"].concat(visYears.map(y => y.misc)),
+    ["Tax + Ins"].concat(visYears.map(y => y.tax_ins)),
+    ["Total OpEx"].concat(visYears.map(y => y.opex)),
+    ["NOI"].concat(visYears.map(y => y.noi)),
+    ["Annual debt service"].concat(visYears.map(_ => -computed.annual_debt_service)),
+    ["Cash flow"].concat(visYears.map(y => y.cash_flow)),
+    ["Property value (at cap)"].concat(visYears.map(y => y.value_at_cap)),
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(noiAOA), "NOI");
+
+  // Sale sheet
+  const saleAOA = [
+    ["Item", "Value"],
+    ["Year-N NOI", computed.exit_year_noi],
+    ["Sale price (NOI / cap)", computed.sale_price],
+    ["Sale title fees", computed.sale_title_fees],
+    ["Loan payoff at exit", computed.loan_payoff_at_exit],
+    ["Net cash to LLC", computed.net_cash_to_llc],
+    ["Equity returned (team cash)", computed.equity_returned],
+    ["TOTAL PROFIT", computed.total_profit],
+    [],
+    ["Member", "Initial $", "% Profit Share", "Profit", "Total Return"],
+  ];
+  computed.team_distributions.forEach(d => {
+    if (!d.name) return;
+    saleAOA.push([d.name, d.contribution, d.ownership_pct, d.profit, d.total_return]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(saleAOA), "Sale");
+
+  // Summary sheet (front)
+  const summaryAOA = [
+    ["MOAB EARLY APP — Deal Snapshot"],
+    [state.deal_name || "", ""],
+    [state.property_address_full || "", ""],
+    [],
+    ["Metric", "Value"],
+    ["Purchase price", state.purchase_price],
+    ["Loan amount", computed.loan_amount],
+    ["Equity required at close", computed.equity_required],
+    ["Year 1 rent (monthly NNN)", state.rent_year_1_monthly],
+    ["Annual rent escalator", state.rent_annual_escalator],
+    ["Hold period (yrs)", state.hold_period_years],
+    ["Loan rate", state.loan_interest_rate],
+    ["Loan amortization (yrs)", state.loan_amortization_years],
+    ["Monthly payment", computed.monthly_payment],
+    ["Year 1 NOI", computed.years[0] && computed.years[0].noi],
+    ["Year 1 cash flow", computed.years[0] && computed.years[0].cash_flow],
+    ["Year-N NOI (at hold)", computed.exit_year_noi],
+    ["Year-N sale value (at exit cap)", computed.sale_price],
+    ["Year-N total profit", computed.total_profit],
+    ["Cap stack sum", computed.team_total_pct],
+    [],
+    ["Saved at", todayISO()],
+    ["Generated by", "Moab Early App v1"],
+  ];
+  // Reorder to put Summary first
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryAOA), "Summary");
+  // Move Summary to first position
+  wb.SheetNames = ["Summary", "Inputs", "NOI", "Investor Team", "Sale"];
+
+  return wb;
+}
+
+function timestampForFilename() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  return d.getFullYear().toString().slice(2) + pad(d.getMonth()+1) + pad(d.getDate()) +
+         "-" + pad(d.getHours()) + pad(d.getMinutes());
+}
+
+async function exportXlsxSnapshot(opts) {
+  // Returns true on success, false if user cancelled or library missing.
+  // opts: {silent: bool} — silent skips toast messages.
+  opts = opts || {};
+  if (typeof XLSX === "undefined") {
+    if (!opts.silent) toast("xlsx library not loaded yet — saved to app only");
+    return false;
+  }
+  const wb = buildXlsxFromState();
+  if (!wb) return false;
+
+  const filename = getDealShortName(state) + "_v_" + timestampForFilename() + ".xlsx";
+  const arrayBuf = XLSX.write(wb, {bookType: "xlsx", type: "array"});
+  const blob = new Blob([arrayBuf], {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+
+  // Try File System Access API first (Chromium / Mac+Edge+Brave)
+  if ("showSaveFilePicker" in window) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{description: "Excel Workbook", accept: {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"]}}],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      if (!opts.silent) toast("xlsx saved to " + handle.name);
+      return true;
+    } catch (e) {
+      if (e.name === "AbortError") { return false; }
+      // Permission denied or other failure → fall through to download
+      console.warn("FSA save failed, falling back to download:", e);
+    }
+  }
+
+  // Download fallback (Safari / Firefox / iOS)
+  try {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    if (!opts.silent) toast("xlsx downloaded as " + filename);
+    return true;
+  } catch (e) {
+    if (!opts.silent) toast("xlsx download failed: " + e.message);
+    return false;
+  }
+}
+
+// ----- NOI (vertical layout: years as rows, metrics as columns) -----
+function renderNOI() {
+  const c = computed;
+  const proj = Number(state.noi_projection_years) || (state.meta && Number(state.meta.noi_projection_years)) || 10;
+  const body = document.getElementById("noiBody");
+  body.innerHTML = "";
+
+  const cols = [
+    {label: "Year",            get: y => "Yr " + y.year},
+    {label: "Monthly rent",    get: y => fmt$(y.monthly_rent)},
+    {label: "Annual rent",     get: y => fmt$(y.annual_rent)},
+    {label: "Mgmt fee",        get: y => fmt$(y.mgmt)},
+    {label: "R&M",             get: y => fmt$(y.rm)},
+    {label: "Misc OpEx",       get: y => fmt$(y.misc)},
+    {label: "Tax + Ins",       get: y => fmt$(y.tax_ins)},
+    {label: "Total OpEx",      get: y => fmt$(y.opex)},
+    {label: "NOI",             get: y => fmt$(y.noi), output: true},
+    {label: "Debt service",    get: () => fmt$(-c.annual_debt_service)},
+    {label: "Cash flow",       get: y => fmt$(y.cash_flow), output: true},
+    {label: "Value (cap)",     get: y => fmt$(y.value_at_cap)},
+  ];
+
+  const tbl = el("table", {className: "grid noi-table"});
+  // Header row
+  const thr = el("tr");
+  cols.forEach((cl, idx) => {
+    thr.appendChild(el("th", {className: idx === 0 ? "" : "num"}, cl.label));
+  });
+  tbl.appendChild(el("thead", null, thr));
+
+  // Body — one row per year (1..proj)
+  const tbody = el("tbody");
+  for (let i = 0; i < proj; i++) {
+    const y = c.years[i];
+    if (!y) break;
+    const tr = el("tr");
+    cols.forEach((cl, idx) => {
+      const isLabelCol = idx === 0;
+      let cls = isLabelCol ? "label" : "num";
+      if (cl.output && y.visible) cls += " output";
+      if (!y.visible) cls += " note";
+      let val;
+      if (!y.visible) val = isLabelCol ? ("Yr " + y.year + " *") : "—";
+      else val = cl.get(y);
+      tr.appendChild(el("td", {className: cls}, val));
+    });
+    tbody.appendChild(tr);
+  }
+  tbl.appendChild(tbody);
+  body.appendChild(tbl);
+
+  body.appendChild(el("p", {className: "kv-hint"},
+    "Years marked * are beyond the current hold period (" + state.hold_period_years + " yrs). " +
+    "NOI projection length is configurable in Inputs → EXIT (currently " + proj + " yrs)."));
+}
+
+// ----- INVESTOR TEAM -----
+function renderTeam() {
+  const c = computed;
+  const body = document.getElementById("teamBody");
+  body.innerHTML = "";
+
+  body.appendChild(el("p", {className: "kv-hint"},
+    "Yellow = editable. Pick a Group (1–10) to split that group's total % equally among its members; " +
+    "the group's total is set in the field that appears below the table for each active group. " +
+    "Auto-Deduct: ONE row's % auto-fills as 100% − sum(others)."));
+
+  const tbl = el("table", {className: "grid team-table"});
+
+  // Header: # | Participants [+1][−1] | Contribution | Ownership % | Group | The Rest | Notes |
+  const nameTh = el("th", {className: "col-name"});
+  nameTh.appendChild(document.createTextNode("Participants"));
+  const pills = el("span", {className: "pills"});
+  const plusBtn = el("button", {title: "Add a participant slot at the bottom"}, "+1");
+  plusBtn.addEventListener("click", addTeamMember);
+  const minusBtn = el("button", {title: "Remove the bottom participant slot"}, "−1");
+  if (state.team_members.length <= 1) minusBtn.disabled = true;
+  minusBtn.addEventListener("click", removeBottomTeamMember);
+  pills.appendChild(plusBtn);
+  pills.appendChild(minusBtn);
+  nameTh.appendChild(pills);
+
+  const restTh = el("th", {className: "col-rest", title: "The Rest: this row absorbs whatever's left over to make the cap stack equal 100%"});
+  restTh.innerHTML = "The<br>Rest";
+
+  const thead = el("thead", null, el("tr", null, [
+    el("th", null, "#"),
+    nameTh,
+    el("th", {className: "col-contribution"}, "Contribution"),
+    el("th", null, "Ownership %"),
+    el("th", {className: "col-group"}, "Group"),
+    restTh,
+    el("th", {className: "col-notes", title: "Notes — click pencil to edit"}, "📝"),
+    el("th", {className: "col-action"}, ""),
+  ]));
+  tbl.appendChild(thead);
+  const tbody = el("tbody");
+
+  state.team_members.forEach((m, idx) => {
+    const tr = el("tr");
+    if (m.equal_lock_group) tr.classList.add("group-" + ((m.equal_lock_group - 1) % 4 + 1));
+    if (m.is_auto_deduct) tr.classList.add("auto-deduct");
+
+    tr.appendChild(el("td", {className: "num"}, String(idx + 1)));
+
+    // Name
+    let td = el("td", {className: "input"});
+    let inp = el("input", {type: "text", value: m.name || ""});
+    inp.style.textAlign = "left";
+    inp.addEventListener("change", () => setTeamMember(idx, "name", inp.value));
+    td.appendChild(inp);
+    tr.appendChild(td);
+
+    // Contribution (half-width)
+    td = el("td", {className: "input num col-contribution"});
+    inp = el("input", {type: "number", value: m.contribution || 0, step: 1000});
+    inp.addEventListener("change", () => setTeamMember(idx, "contribution", inp.value));
+    td.appendChild(inp);
+    tr.appendChild(td);
+
+    // Ownership % — show derived/effective % when grouped or auto-deduct
+    // (read-only); show STORED ownership_pct when independent (editable, so
+    // the user sees exactly what they typed). Cell uses .pct-cell so a
+    // visible "%" suffix appears next to the input — drives home that the
+    // field is in percent form (40 means 40%, not 0.40).
+    td = el("td", {className: "input num pct-cell"});
+    const dist = (c.team_distributions || [])[idx] || {};
+    const isAD = m.is_auto_deduct === true;
+    const isGrouped = m.equal_lock_group != null && m.equal_lock_group !== "";
+    const groupHasTotal = isGrouped && (state.group_totals || {})[m.equal_lock_group] != null;
+    const isEditable = !isAD && !isGrouped;
+    const displayPct = isEditable
+      ? (Number(m.ownership_pct) || 0)
+      : (dist.ownership_pct || 0);
+    // step:0.5 → spinners step by half a percent (useful), not 0.01% (useless)
+    inp = el("input", {type: "number", value: (displayPct * 100).toFixed(2), step: 0.5, min: 0, max: 100});
+    if (isEditable) {
+      inp.disabled = false;
+      inp.removeAttribute("readonly");
+      // Select-all on focus + on click so typing replaces the value rather
+      // than appending to "0.00" (was the "user types 40, gets stored as
+      // 0.0040" bug). Wrapping in setTimeout(...,0) so select() fires AFTER
+      // the focus event settles — Mac Safari otherwise fights the selection.
+      inp.addEventListener("focus", () => { setTimeout(() => { try { inp.select(); } catch (e) {} }, 0); });
+      inp.addEventListener("click", () => { try { inp.select(); } catch (e) {} });
+      inp.addEventListener("change", () => {
+        let v = Number(inp.value) / 100;
+        if (isNaN(v)) v = 0;
+        v = Math.max(0, Math.min(1, v));
+        setTeamMember(idx, "ownership_pct", v);
+      });
+    } else {
+      inp.disabled = true;
+      inp.title = isAD
+        ? "Auto-deduct: 100% − sum of others"
+        : (groupHasTotal
+            ? "Group " + m.equal_lock_group + " total ÷ " + (c.group_counts[m.equal_lock_group] || 1) + " members"
+            : "Set Group " + m.equal_lock_group + " total below");
+    }
+    td.appendChild(inp);
+    tr.appendChild(td);
+
+    // Group dropdown — (none) + 1–10 (narrow)
+    td = el("td", {className: "input num col-group"});
+    const gsel = el("select");
+    const groupOpts = [["", "—"]];
+    for (let g = 1; g <= 10; g++) groupOpts.push([String(g), String(g)]);
+    groupOpts.forEach(o => {
+      const op = el("option", {value: o[0]}, o[1]);
+      if (String(m.equal_lock_group || "") === o[0]) op.selected = true;
+      gsel.appendChild(op);
+    });
+    gsel.addEventListener("change", () => {
+      const v = gsel.value === "" ? null : Number(gsel.value);
+      setTeamMember(idx, "equal_lock_group", v);
+    });
+    td.appendChild(gsel);
+    tr.appendChild(td);
+
+    // The Rest (auto-deduct flag) — narrow centered checkbox
+    td = el("td", {className: "input num col-rest"});
+    const cb = el("input", {type: "checkbox"});
+    cb.checked = m.is_auto_deduct === true;
+    cb.title = "Mark this row as 'The Rest' — auto-fills as 100% − sum(others)";
+    cb.addEventListener("change", () => setTeamMember(idx, "is_auto_deduct", cb.checked));
+    td.appendChild(cb);
+    tr.appendChild(td);
+
+    // Notes — pencil icon, opens modal editor
+    td = el("td", {className: "col-notes"});
+    const hasNotes = !!(m.notes && m.notes.trim());
+    const notesBtn = el("button", {
+      className: "btn-notes-icon" + (hasNotes ? " has-notes" : ""),
+      title: hasNotes ? ("Notes: " + m.notes.slice(0, 80)) : "Click to add notes",
+    }, hasNotes ? "📝" : "✎");
+    notesBtn.addEventListener("click", () => openNotesModal(idx));
+    td.appendChild(notesBtn);
+    tr.appendChild(td);
+
+    // Remove
+    td = el("td", {className: "col-action"});
+    const rm = el("button", {className: "btn", title: "Remove member"}, "×");
+    rm.addEventListener("click", () => {
+      if (state.team_members.length <= 1) { toast("Need at least one member"); return; }
+      const removed = state.team_members[idx];
+      state.team_members.splice(idx, 1);
+      // NEW group model: removing a member from a group leaves the group total
+      // unchanged, so the survivors automatically split the same total over
+      // fewer members (each member's effective % goes UP, which matches how
+      // you'd want it to behave when someone drops out of a deal). compute()
+      // handles it in the next render.
+      // If the removed group is now empty, drop the group total too.
+      if (removed && removed.equal_lock_group && state.group_totals) {
+        const stillIn = state.team_members.some(mm => mm.equal_lock_group === removed.equal_lock_group);
+        if (!stillIn) delete state.group_totals[String(removed.equal_lock_group)];
+      }
+      state.last_edited_date = todayISO();
+      recompute(); autosave(); renderActiveTab();
+    });
+    td.appendChild(rm);
+    tr.appendChild(td);
+
+    tbody.appendChild(tr);
+  });
+
+  // TOTAL row — % cell turns red when sum ≠ 100%; show the +/− delta inline
+  const totalTr = el("tr");
+  totalTr.appendChild(el("td"));
+  totalTr.appendChild(el("td", {className: "label"}, "TOTAL"));
+  totalTr.appendChild(el("td", {className: "num output"}, fmt$(c.team_total_contribution)));
+  const deltaPct = (c.team_total_pct || 0) - 1;
+  const pctText = fmtPct(c.team_total_pct) + (c.cap_stack_ok ? "" : " (" + (deltaPct > 0 ? "+" : "−") + fmtPct(Math.abs(deltaPct)) + ")");
+  totalTr.appendChild(el("td", {
+    className: "num output" + (c.cap_stack_ok ? "" : " bad-pct")
+  }, pctText));
+  totalTr.appendChild(el("td", {colspan: "4"}));
+  tbody.appendChild(totalTr);
+
+  tbl.appendChild(tbody);
+  body.appendChild(tbl);
+
+  // === GROUP TOTALS EDITOR (one row per active group) ===
+  const activeGroups = c.active_group_ids || [];
+  if (activeGroups.length > 0) {
+    body.appendChild(el("h3", null, "Group Totals — set the combined % for each group"));
+    body.appendChild(el("p", {className: "kv-hint"},
+      "Each group's total is split equally among its " + (activeGroups.length === 1 ? "members" : "members below") +
+      ". Empty totals leave grouped members at 0%."));
+
+    const gTbl = el("table", {className: "grid"});
+    const gThead = el("thead", null, el("tr", null, [
+      el("th", null, "Group"),
+      el("th", null, "Members"),
+      el("th", null, "Total %"),
+      el("th", null, "Per-member %"),
+    ]));
+    gTbl.appendChild(gThead);
+    const gTbody = el("tbody");
+    activeGroups.forEach(gid => {
+      const cnt = c.group_counts[gid] || 0;
+      const total = c.group_totals[gid];
+      const totalNum = (total == null) ? null : Number(total);
+      const perMember = (totalNum != null && cnt > 0) ? totalNum / cnt : null;
+      const tr = el("tr");
+      tr.classList.add("group-" + ((gid - 1) % 4 + 1));
+      tr.appendChild(el("td", {className: "label"}, "Group " + gid));
+      tr.appendChild(el("td", {className: "num"}, String(cnt)));
+
+      // Editable group total %  (with visible % suffix, half-percent step)
+      const totTd = el("td", {className: "input num pct-cell"});
+      const totInp = el("input", {
+        type: "number",
+        value: totalNum == null ? "" : (totalNum * 100).toFixed(2),
+        step: 0.5, min: 0, max: 100,
+        placeholder: "—",
+      });
+      totInp.addEventListener("focus", () => { setTimeout(() => { try { totInp.select(); } catch (e) {} }, 0); });
+      totInp.addEventListener("click", () => { try { totInp.select(); } catch (e) {} });
+      totInp.addEventListener("change", () => {
+        let raw = totInp.value === "" ? "" : Number(totInp.value) / 100;
+        if (raw !== "" && (isNaN(raw) || raw < 0)) raw = 0;
+        if (raw !== "" && raw > 1) raw = 1;
+        setGroupTotal(gid, raw);
+      });
+      totTd.appendChild(totInp);
+      tr.appendChild(totTd);
+
+      tr.appendChild(el("td", {className: "num output"}, perMember == null ? "—" : fmtPct(perMember)));
+      gTbody.appendChild(tr);
+    });
+    gTbl.appendChild(gTbody);
+    body.appendChild(gTbl);
+  }
+
+  // (Big 100% cap-stack status box removed 260426 — TOTAL row inside the
+  // table already shows the sum + +/- delta from 100% in red when off.)
+}
+
+// Add a participant slot — bound by the [+1] pill button in the header.
+function addTeamMember() {
+  const newMember = {name: "", contribution: 0, ownership_pct: 0, equal_lock_group: null, is_auto_deduct: false, notes: ""};
+  undoStack.push({
+    type: "team_add", member: JSON.parse(JSON.stringify(newMember)),
+    description: "add participant slot (#" + (state.team_members.length + 1) + ")",
+    timestamp: Date.now()
+  });
+  if (undoStack.length > 200) undoStack.shift();
+  redoStack = [];
+  state.team_members.push(newMember);
+  state.last_edited_date = todayISO();
+  recompute(); autosave(); renderActiveTab(); updateUndoRedoUI();
+}
+
+// Remove the BOTTOM participant slot — bound by the [−1] pill button.
+function removeBottomTeamMember() {
+  if (state.team_members.length <= 1) { toast("Need at least one participant"); return; }
+  const removed = state.team_members[state.team_members.length - 1];
+  undoStack.push({
+    type: "team_remove", idx: state.team_members.length - 1,
+    member: JSON.parse(JSON.stringify(removed)),
+    description: "remove participant " + (removed.name && removed.name.trim() ? "“" + removed.name + "”" : "(unnamed)"),
+    timestamp: Date.now()
+  });
+  if (undoStack.length > 200) undoStack.shift();
+  redoStack = [];
+  state.team_members.pop();
+  // If the removed group is now empty, drop the group total too
+  if (removed && removed.equal_lock_group && state.group_totals) {
+    const stillIn = state.team_members.some(mm => mm.equal_lock_group === removed.equal_lock_group);
+    if (!stillIn) delete state.group_totals[String(removed.equal_lock_group)];
+  }
+  state.last_edited_date = todayISO();
+  recompute(); autosave(); renderActiveTab(); updateUndoRedoUI();
+}
+
+// ----- SALE -----
+function renderSale() {
+  const c = computed;
+  const body = document.getElementById("saleBody");
+  body.innerHTML = "";
+
+  const kv = el("div", {className: "kv"});
+  const rows = [
+    ["Year-N NOI",                  fmt$(c.exit_year_noi), false],
+    ["Sale price (NOI / cap)",      fmt$(c.sale_price), true],
+    ["Sale title fees",             fmt$(c.sale_title_fees), false],
+    ["Loan payoff at exit",         fmt$(c.loan_payoff_at_exit), false],
+    ["Net cash to LLC",             fmt$(c.net_cash_to_llc), true],
+    ["Equity returned (team cash)", fmt$(c.equity_returned), false],
+    ["TOTAL PROFIT",                fmt$(c.total_profit), true],
+  ];
+  rows.forEach(r => {
+    kv.appendChild(el("div", {className: "kv-label"}, r[0]));
+    kv.appendChild(el("div", {className: "kv-value " + (r[2] ? "output" : "")}, r[1]));
+    kv.appendChild(el("div", {className: "kv-hint"}, ""));
+  });
+  body.appendChild(kv);
+
+  body.appendChild(el("h3", null, "Distribution by Investor"));
+  const tbl = el("table", {className: "grid"});
+  tbl.appendChild(el("thead", null, el("tr", null, [
+    el("th", null, "Member"),
+    el("th", null, "Initial $"),
+    el("th", null, "% Profit Share"),
+    el("th", null, "Profit"),
+    el("th", null, "Total Return"),
+  ])));
+  const tbody = el("tbody");
+  c.team_distributions.forEach(d => {
+    if (!d.name) return;
+    tbody.appendChild(el("tr", null, [
+      el("td", {className: "label"}, d.name),
+      el("td", {className: "num"}, fmt$(d.contribution)),
+      el("td", {className: "num"}, fmtPct(d.ownership_pct)),
+      el("td", {className: "num output"}, fmt$(d.profit)),
+      el("td", {className: "num"}, fmt$(d.total_return)),
+    ]));
+  });
+  tbl.appendChild(tbody);
+  body.appendChild(tbl);
+}
+
+// ----- SENSITIVITY (read-only stub for v1) -----
+function renderSensitivity() {
+  const body = document.getElementById("sensBody");
+  body.innerHTML = "";
+  body.appendChild(el("p", {className: "kv-hint"},
+    "Three two-way tables (rent × cap → sale value, rent × loan rate → cash flow, rent × cap → IRR per $70K position). " +
+    "Live computation; updates as Inputs change."));
+
+  // Reuse the assumptions in compute() to build tables.
+  const caps = [0.06, 0.065, 0.07, 0.075, 0.08, 0.085, 0.09, 0.095, 0.10];
+  const rates = [0.05, 0.055, 0.06, 0.065, 0.07, 0.075, 0.08, 0.085, 0.09, 0.095, 0.10];
+  const rents = [7000, 7500, 8000, 8500, 9000, 9500, 10000, 10500, 11000, 11500, 12000];
+
+  function noiAtRent(r, yearIdx) {
+    const monthly = r * Math.pow(1 + state.rent_annual_escalator, yearIdx - 1);
+    const annual = monthly * 12;
+    const mgmt = annual * state.mgmt_fee_pct_of_rent;
+    const tax_ins = state.is_pure_nnn ? 0 : (state.property_tax_annual + state.insurance_annual);
+    return annual - (mgmt + state.rm_annual + state.misc_annual + tax_ins);
+  }
+
+  // TABLE 1
+  body.appendChild(el("h3", null, "Table 1 — Year-N sale value:  rent × exit cap rate"));
+  body.appendChild(buildSensTable(rents, caps, "Yr1 Rent ↓ / Cap →", "$",
+    (r, c) => noiAtRent(r, state.hold_period_years) / c));
+
+  // TABLE 2 — Year 1 cash flow vs loan rate
+  body.appendChild(el("h3", null, "Table 2 — Year 1 cash flow:  rent × loan rate"));
+  body.appendChild(buildSensTable(rents, rates, "Yr1 Rent ↓ / Loan Rate →", "$",
+    (r, lr) => {
+      const noi1 = noiAtRent(r, 1);
+      const ds = pmt(lr / 12, state.loan_amortization_years * 12, state.purchase_price * state.loan_to_value) * 12;
+      return noi1 - ds;
+    }));
+
+  // TABLE 3 — Approx N-yr return per $70K (14%) position
+  body.appendChild(el("h3", null, "Table 3 — Approx N-yr return per $70K (14%):  rent × cap"));
+  body.appendChild(buildSensTable(rents, caps, "Yr1 Rent ↓ / Cap →", "%",
+    (r, c) => {
+      const sale = noiAtRent(r, state.hold_period_years) / c;
+      const profit = sale - state.purchase_price - state.title_fees;
+      const per14 = profit * 0.14;
+      return (per14 / 70000) / state.hold_period_years;
+    }));
+}
+
+function buildSensTable(yAxis, xAxis, headerLabel, fmtKind, fn) {
+  const tbl = el("table", {className: "grid"});
+  const thr = el("tr", null, [el("th", null, headerLabel)]);
+  xAxis.forEach(x => thr.appendChild(el("th", null, fmtKind === "%" ? fmtPct(x) : fmtPct(x))));
+  tbl.appendChild(el("thead", null, thr));
+  // Compute all cells, find min/max for color scale
+  const cells = [];
+  yAxis.forEach(y => {
+    const row = [];
+    xAxis.forEach(x => row.push(fn(y, x)));
+    cells.push(row);
+  });
+  const flat = cells.flat();
+  const min = Math.min(...flat), max = Math.max(...flat);
+  const tbody = el("tbody");
+  yAxis.forEach((y, i) => {
+    const tr = el("tr");
+    tr.appendChild(el("th", null, fmtKind === "%" ? fmtPct(y) : "$" + y.toLocaleString()));
+    cells[i].forEach(v => {
+      const ratio = max === min ? 0.5 : (v - min) / (max - min);
+      const bg = colorScale(ratio);
+      const td = el("td", {className: "num"}, fmtKind === "$" ? fmt$(v) : fmtPct(v));
+      td.style.background = bg;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  return tbl;
+}
+
+function colorScale(t) {
+  // t in [0..1] → red @ 0, yellow @ 0.5, green @ 1
+  if (t < 0.5) {
+    const k = t / 0.5;
+    return mix("#F8696B", "#FFEB84", k);
+  }
+  return mix("#FFEB84", "#63BE7B", (t - 0.5) / 0.5);
+}
+function mix(a, b, t) {
+  const ah = a.replace("#",""), bh = b.replace("#","");
+  const ar = parseInt(ah.slice(0,2),16), ag = parseInt(ah.slice(2,4),16), ab = parseInt(ah.slice(4,6),16);
+  const br = parseInt(bh.slice(0,2),16), bg = parseInt(bh.slice(2,4),16), bb = parseInt(bh.slice(4,6),16);
+  const r = Math.round(ar + (br-ar)*t), g = Math.round(ag + (bg-ag)*t), bbb = Math.round(ab + (bb-ab)*t);
+  return "rgb(" + r + "," + g + "," + bbb + ")";
+}
+
+// ----- CHARTS (Chart.js) -----
+let chartInstances = [];
+function destroyCharts() {
+  chartInstances.forEach(c => { try { c.destroy(); } catch(e){} });
+  chartInstances = [];
+}
+function renderCharts() {
+  destroyCharts();
+  const body = document.getElementById("chartsBody");
+  body.innerHTML = "";
+
+  if (typeof Chart === "undefined") {
+    body.appendChild(el("p", {className: "kv-hint"},
+      "Chart.js is loaded from CDN. If offline before first load, charts won't render. After first load, the service worker caches Chart.js so subsequent offline use works."));
+    return;
+  }
+
+  const c = computed;
+  const visYears = c.years.filter(y => y.visible);
+
+  // NOI growth
+  body.appendChild(el("h3", null, "NOI growth over hold period"));
+  const cv1 = el("canvas", {width: 700, height: 300});
+  body.appendChild(cv1);
+  chartInstances.push(new Chart(cv1, {
+    type: "line",
+    data: {
+      labels: visYears.map(y => "Yr " + y.year),
+      datasets: [{label: "NOI", data: visYears.map(y => y.noi), borderColor: "#1F3A5F", backgroundColor: "rgba(31,58,95,0.1)", fill: true, tension: 0.2}]
+    },
+    options: {responsive: false, plugins: {legend: {display: false}}}
+  }));
+
+  // Cap stack
+  body.appendChild(el("h3", null, "Cap stack (% of equity)"));
+  const cv2 = el("canvas", {width: 700, height: 220});
+  body.appendChild(cv2);
+  const teamLabels = state.team_members.filter(m => m.name).map(m => m.name);
+  const teamData = state.team_members.filter(m => m.name).map(m => +(m.ownership_pct * 100).toFixed(2));
+  chartInstances.push(new Chart(cv2, {
+    type: "bar",
+    data: {
+      labels: teamLabels,
+      datasets: [{label: "% of equity", data: teamData, backgroundColor: ["#1F3A5F","#4A6FA5","#88B04B","#C9A227","#B25450","#6A8FB5","#7A8B99"]}]
+    },
+    options: {indexAxis: "y", responsive: false, plugins: {legend: {display: false}}}
+  }));
+
+  // Profit by investor
+  body.appendChild(el("h3", null, "Year-N profit by investor"));
+  const cv3 = el("canvas", {width: 700, height: 260});
+  body.appendChild(cv3);
+  const dists = c.team_distributions.filter(d => d.name);
+  chartInstances.push(new Chart(cv3, {
+    type: "bar",
+    data: {
+      labels: dists.map(d => d.name),
+      datasets: [{label: "Profit at exit", data: dists.map(d => d.profit), backgroundColor: "#88B04B"}]
+    },
+    options: {responsive: false}
+  }));
+}
+
+// ----- QUESTIONS -----
+function renderQuestions() {
+  const body = document.getElementById("questionsBody");
+  body.innerHTML = "";
+  body.appendChild(el("p", {className: "kv-hint"},
+    "Append-only running log of open questions about the app and the deal. Persisted with the deal state."));
+
+  const tbl = el("table", {className: "grid"});
+  tbl.appendChild(el("thead", null, el("tr", null, [
+    el("th", null, "ID"),
+    el("th", null, "Target"),
+    el("th", null, "Question"),
+    el("th", null, "Status"),
+    el("th", null, "Answer"),
+    el("th", null, ""),
+  ])));
+  const tbody = el("tbody");
+  (state.questions || []).forEach((q, idx) => {
+    const tr = el("tr");
+    tr.appendChild(el("td", {className: "label"}, q.id));
+    tr.appendChild(el("td", null, q.target || ""));
+    tr.appendChild(el("td", null, q.text));
+
+    const stTd = el("td");
+    const stSel = el("select");
+    [["open","open"],["answered","answered"]].forEach(o => {
+      const op = el("option", {value: o[0]}, o[1]);
+      if (q.status === o[0]) op.selected = true;
+      stSel.appendChild(op);
+    });
+    stSel.addEventListener("change", () => {
+      state.questions[idx].status = stSel.value;
+      state.last_edited_date = todayISO();
+      autosave(); renderActiveTab();
+    });
+    stTd.appendChild(stSel);
+    tr.appendChild(stTd);
+
+    const ansTd = el("td", {className: "input"});
+    const ansInp = el("input", {type: "text", value: q.answer || ""});
+    ansInp.style.textAlign = "left";
+    ansInp.addEventListener("change", () => {
+      state.questions[idx].answer = ansInp.value;
+      state.last_edited_date = todayISO();
+      autosave(); renderActiveTab();
+    });
+    ansTd.appendChild(ansInp);
+    tr.appendChild(ansTd);
+
+    const rmTd = el("td");
+    const rm = el("button", {className: "btn"}, "×");
+    rm.addEventListener("click", () => {
+      state.questions.splice(idx, 1);
+      state.last_edited_date = todayISO();
+      autosave(); renderActiveTab();
+    });
+    rmTd.appendChild(rm);
+    tr.appendChild(rmTd);
+
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  body.appendChild(tbl);
+
+  // Add question
+  const addRow = el("div", {style: "margin-top: 12px; display: flex; gap: 6px;"});
+  const targetInput = el("input", {type: "text", placeholder: "Target (e.g., John Able)", style: "padding: 4px 6px; border: 1px solid var(--gray-border);"});
+  const textInput   = el("input", {type: "text", placeholder: "Question text", style: "flex: 1; padding: 4px 6px; border: 1px solid var(--gray-border);"});
+  const addBtn = el("button", {className: "btn btn-primary"}, "+ Add Question");
+  addBtn.addEventListener("click", () => {
+    if (!textInput.value.trim()) return;
+    const nextId = "Q" + (((state.questions || []).length) + 1);
+    if (!state.questions) state.questions = [];
+    state.questions.push({id: nextId, target: targetInput.value, text: textInput.value, status: "open", answer: "", created_at: todayISO()});
+    targetInput.value = ""; textInput.value = "";
+    state.last_edited_date = todayISO();
+    autosave(); renderActiveTab();
+  });
+  addRow.appendChild(targetInput);
+  addRow.appendChild(textInput);
+  addRow.appendChild(addBtn);
+  body.appendChild(addRow);
+}
+
+// ----- VERSIONS -----
+let versionsView = {
+  sortKey: "saved_at",
+  sortDir: "desc",
+  filters: {minPrice: null, maxPrice: null, minTeam: null, maxTeam: null, fromDate: null, toDate: null},
+  selected: new Set(),
+  cache: [],
+};
+
+async function renderVersions() {
+  const body = document.getElementById("versionsBody");
+  body.innerHTML = "";
+  body.appendChild(el("p", {className: "kv-hint"},
+    "All saved versions across all deals. Default sort: most-recently-edited first. Filters AND together. Select 2+ rows then click Compare."));
+
+  const filterBar = el("div", {className: "filter-bar"});
+  filterBar.appendChild(el("label", null, "Price"));
+  const minP = el("input", {type: "number", placeholder: "min $", style: "width: 90px;"});
+  const maxP = el("input", {type: "number", placeholder: "max $", style: "width: 90px;"});
+  minP.addEventListener("change", () => { versionsView.filters.minPrice = minP.value ? +minP.value : null; renderActiveTab(); });
+  maxP.addEventListener("change", () => { versionsView.filters.maxPrice = maxP.value ? +maxP.value : null; renderActiveTab(); });
+  filterBar.appendChild(minP); filterBar.appendChild(maxP);
+
+  filterBar.appendChild(el("label", null, "# Team"));
+  const minT = el("input", {type: "number", placeholder: "min", style: "width: 60px;"});
+  const maxT = el("input", {type: "number", placeholder: "max", style: "width: 60px;"});
+  minT.addEventListener("change", () => { versionsView.filters.minTeam = minT.value ? +minT.value : null; renderActiveTab(); });
+  maxT.addEventListener("change", () => { versionsView.filters.maxTeam = maxT.value ? +maxT.value : null; renderActiveTab(); });
+  filterBar.appendChild(minT); filterBar.appendChild(maxT);
+
+  filterBar.appendChild(el("label", null, "Saved between"));
+  const fromD = el("input", {type: "date"});
+  const toD   = el("input", {type: "date"});
+  fromD.addEventListener("change", () => { versionsView.filters.fromDate = fromD.value || null; renderActiveTab(); });
+  toD.addEventListener("change",   () => { versionsView.filters.toDate   = toD.value || null;   renderActiveTab(); });
+  filterBar.appendChild(fromD); filterBar.appendChild(toD);
+
+  const reset = el("button", {className: "btn"}, "Reset");
+  reset.addEventListener("click", () => {
+    versionsView.filters = {minPrice: null, maxPrice: null, minTeam: null, maxTeam: null, fromDate: null, toDate: null};
+    minP.value = ""; maxP.value = ""; minT.value = ""; maxT.value = ""; fromD.value = ""; toD.value = "";
+    renderActiveTab();
+  });
+  filterBar.appendChild(reset);
+  body.appendChild(filterBar);
+
+  // Compare bar
+  const compareBar = el("div", {className: "compare-bar"});
+  const compareBtn = el("button", {className: "btn btn-primary", disabled: true}, "Compare");
+  compareBtn.id = "compareBtn";
+  compareBtn.addEventListener("click", openCompareModal);
+  compareBar.appendChild(compareBtn);
+  compareBar.appendChild(el("span", {className: "kv-hint", id: "selCount"}, "0 selected"));
+  body.appendChild(compareBar);
+
+  // Table
+  const all = await listVersions();
+  let rows = all.filter(v => filterVersion(v));
+  rows.sort((a, b) => sortVersionRow(a, b));
+
+  versionsView.cache = rows;
+
+  const tbl = el("table", {className: "grid versions-table"});
+  const cols = [
+    {key: "checkbox",         label: "✓",          sort: false},
+    {key: "deal_name",        label: "Deal",       sort: true},
+    {key: "version_short",    label: "Version",    sort: false},
+    {key: "saved_at",         label: "Last edited",sort: true},
+    {key: "created_at",       label: "Created",    sort: true},
+    {key: "closing_date",     label: "Closing",    sort: true},
+    {key: "purchase_price",   label: "Price",      sort: true},
+    {key: "team_count",       label: "# Team",     sort: true},
+    {key: "manual_changes",   label: "Manual changes (vs parent)", sort: false},
+    {key: "load",             label: "",           sort: false},
+  ];
+  const thead = el("thead");
+  const thr = el("tr");
+  cols.forEach(c => {
+    const th = el("th");
+    if (c.sort) th.style.cursor = "pointer";
+    th.textContent = c.label;
+    if (c.sort && versionsView.sortKey === c.key) {
+      th.appendChild(el("span", {className: "sort-arrow"}, " " + (versionsView.sortDir === "desc" ? "↓" : "↑")));
+    }
+    if (c.sort) th.addEventListener("click", () => {
+      if (versionsView.sortKey === c.key) versionsView.sortDir = versionsView.sortDir === "desc" ? "asc" : "desc";
+      else { versionsView.sortKey = c.key; versionsView.sortDir = "desc"; }
+      renderActiveTab();
+    });
+    thr.appendChild(th);
+  });
+  thead.appendChild(thr); tbl.appendChild(thead);
+  const tbody = el("tbody");
+
+  if (rows.length === 0) {
+    const tr = el("tr"); tr.appendChild(el("td", {colspan: cols.length, className: "kv-hint", style: "text-align: center; padding: 20px;"},
+      "No saved versions yet. Click [+ Save Version] in the top bar to save the current deal."));
+    tbody.appendChild(tr);
+  }
+
+  rows.forEach(v => {
+    const tr = el("tr");
+    const cb = el("input", {type: "checkbox"});
+    cb.checked = versionsView.selected.has(v.version_id);
+    cb.addEventListener("change", () => {
+      if (cb.checked) versionsView.selected.add(v.version_id);
+      else versionsView.selected.delete(v.version_id);
+      const cnt = versionsView.selected.size;
+      document.getElementById("compareBtn").disabled = cnt < 2;
+      document.getElementById("selCount").textContent = cnt + " selected";
+    });
+    tr.appendChild(el("td", null, cb));
+    tr.appendChild(el("td", {className: "label"}, (v.state && v.state.deal_name) || v.deal_short_name || "Untitled"));
+    tr.appendChild(el("td", null, v.version_id.slice(0, 12)));
+    tr.appendChild(el("td", null, (v.saved_at || "").slice(0, 16).replace("T", " ")));
+    tr.appendChild(el("td", null, (v.state && v.state.created_at || "").slice(0, 10)));
+    tr.appendChild(el("td", null, (v.state && v.state.closing_date) || "—"));
+    tr.appendChild(el("td", {className: "num"}, fmt$(v.state && v.state.purchase_price || 0)));
+    tr.appendChild(el("td", {className: "num"}, String((v.state && v.state.team_members || []).filter(m => m.name && m.name.trim()).length)));
+    tr.appendChild(el("td", {className: "kv-hint"},
+      (v.manual_changes || []).slice(0, 4).map(ch => ch.field_key).join(", ") + ((v.manual_changes || []).length > 4 ? " …" : "")));
+    const loadBtn = el("button", {className: "btn"}, "Load");
+    loadBtn.addEventListener("click", () => loadVersion(v.version_id));
+    tr.appendChild(el("td", null, loadBtn));
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  body.appendChild(tbl);
+
+  // Update select count after re-render
+  document.getElementById("compareBtn").disabled = versionsView.selected.size < 2;
+  document.getElementById("selCount").textContent = versionsView.selected.size + " selected";
+}
+
+function filterVersion(v) {
+  const f = versionsView.filters;
+  const s = v.state || {};
+  const teamCount = (s.team_members || []).filter(m => m.name && m.name.trim()).length;
+  if (f.minPrice !== null && s.purchase_price < f.minPrice) return false;
+  if (f.maxPrice !== null && s.purchase_price > f.maxPrice) return false;
+  if (f.minTeam !== null && teamCount < f.minTeam) return false;
+  if (f.maxTeam !== null && teamCount > f.maxTeam) return false;
+  if (f.fromDate && (v.saved_at || "") < f.fromDate) return false;
+  if (f.toDate && (v.saved_at || "") > f.toDate + "T23:59:59") return false;
+  return true;
+}
+
+function sortVersionRow(a, b) {
+  const k = versionsView.sortKey;
+  let av, bv;
+  if (k === "deal_name" || k === "deal_short_name") {
+    av = (a.state && a.state.deal_name) || a.deal_short_name || "";
+    bv = (b.state && b.state.deal_name) || b.deal_short_name || "";
+  }
+  else if (k === "saved_at")   { av = a.saved_at; bv = b.saved_at; }
+  else if (k === "created_at") { av = a.state && a.state.created_at; bv = b.state && b.state.created_at; }
+  else if (k === "closing_date") { av = a.state && a.state.closing_date; bv = b.state && b.state.closing_date; }
+  else if (k === "purchase_price") { av = a.state && a.state.purchase_price; bv = b.state && b.state.purchase_price; }
+  else if (k === "team_count") {
+    av = (a.state && a.state.team_members || []).filter(m => m.name && m.name.trim()).length;
+    bv = (b.state && b.state.team_members || []).filter(m => m.name && m.name.trim()).length;
+  }
+  else { av = a.saved_at; bv = b.saved_at; }
+  if (av == null) av = "";
+  if (bv == null) bv = "";
+  if (av < bv) return versionsView.sortDir === "desc" ? 1 : -1;
+  if (av > bv) return versionsView.sortDir === "desc" ? -1 : 1;
+  return 0;
+}
+
+// ----- COMPARE -----
+const COMPARE_DEFAULTS = ["deal_name","saved_at","purchase_price","rent_year_1_monthly","hold_period_years","exit_cap_rate","loan_interest_rate","total_profit","sale_price","exit_year_noi"];
+
+async function openCompareModal() {
+  const ids = Array.from(versionsView.selected);
+  if (ids.length < 2) return;
+  const all = await listVersions();
+  const sel = ids.map(id => all.find(v => v.version_id === id)).filter(Boolean);
+  const body = document.getElementById("compareBody");
+  body.innerHTML = "";
+
+  // Settings cog
+  const cogRow = el("div", {style: "display: flex; gap: 10px; align-items: center; margin-bottom: 10px;"});
+  const cog = el("button", {className: "btn"}, "⚙ Compare Columns");
+  cog.addEventListener("click", () => toggleCompareSettings(sel));
+  cogRow.appendChild(cog);
+  body.appendChild(cogRow);
+
+  const cmpKeys = JSON.parse(localStorage.getItem("moab_compare_default") || "null") || COMPARE_DEFAULTS;
+
+  const tbl = el("table", {className: "grid"});
+  const thead = el("thead");
+  const thr = el("tr", null, [el("th", null, "Field")]);
+  sel.forEach(v => thr.appendChild(el("th", null, ((v.state && v.state.deal_name) || v.deal_short_name || "Untitled") + " · " + v.version_id.slice(0, 8))));
+  thead.appendChild(thr);
+  tbl.appendChild(thead);
+  const tbody = el("tbody");
+
+  cmpKeys.forEach(k => {
+    const tr = el("tr");
+    tr.appendChild(el("td", {className: "label"}, k));
+    const vals = sel.map(v => {
+      const s = v.state || {};
+      // compute() may throw on older / corrupt schemas — handle gracefully
+      let c = null;
+      try { c = s ? compute(s) : null; } catch (e) {
+        console.warn("compare: compute() failed on version", v.version_id, e);
+        return "—";
+      }
+      let val;
+      if (k in s) val = s[k];
+      else if (c && k in c) val = c[k];
+      else if (c && k === "exit_year_noi") val = c.exit_year_noi;
+      else if (c && k === "total_profit")  val = c.total_profit;
+      else if (c && k === "sale_price")    val = c.sale_price;
+      else if (k === "saved_at")           val = (v.saved_at || "").slice(0, 16);
+      else val = "—";
+      return val == null ? "—" : val;
+    });
+    // Highlight differences
+    const allEqual = vals.every(x => String(x) === String(vals[0]));
+    vals.forEach(val => {
+      const td = el("td", {className: "num"});
+      td.textContent = formatCmpVal(k, val);
+      if (!allEqual) td.style.background = "#FFF7CC";
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  body.appendChild(tbl);
+
+  document.getElementById("compareBackdrop").classList.remove("hidden");
+}
+
+function formatCmpVal(k, v) {
+  if (typeof v === "number") {
+    if (k.includes("rate") || k.includes("escalator") || k.includes("ltv") || k.includes("cap")) return fmtPct(v);
+    return fmt$(v);
+  }
+  return String(v == null ? "—" : v);
+}
+
+function toggleCompareSettings(sel) {
+  const body = document.getElementById("compareBody");
+  let panel = body.querySelector(".cmp-settings");
+  if (panel) { panel.remove(); return; }
+  panel = el("div", {className: "cmp-settings", style: "border: 1px solid var(--gray-border); padding: 10px; margin-bottom: 12px; background: #FAFAFA;"});
+  panel.appendChild(el("p", {className: "kv-hint"}, "Toggle which fields appear in the comparison. Click 'Set as Default' to remember."));
+  const candidates = [
+    "deal_name","saved_at","created_at","closing_date","purchase_price","earnest_money","reserve","loan_to_value","loan_interest_rate","loan_amortization_years",
+    "rent_year_1_monthly","rent_annual_escalator","mgmt_fee_pct_of_rent","is_pure_nnn","hold_period_years","exit_cap_rate",
+    "loan_amount","monthly_payment","exit_year_noi","sale_price","total_profit"
+  ];
+  const current = new Set(JSON.parse(localStorage.getItem("moab_compare_default") || "null") || COMPARE_DEFAULTS);
+  candidates.forEach(c => {
+    const lbl = el("label", {style: "display: inline-block; margin-right: 12px; font-size: 12px;"});
+    const cb = el("input", {type: "checkbox"});
+    cb.checked = current.has(c);
+    cb.addEventListener("change", () => { cb.checked ? current.add(c) : current.delete(c); });
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(" " + c));
+    panel.appendChild(lbl);
+  });
+  const setDefault = el("button", {className: "btn btn-primary", style: "margin-top: 10px;"}, "Set as Default + Apply");
+  setDefault.addEventListener("click", () => {
+    const arr = candidates.filter(c => current.has(c));
+    localStorage.setItem("moab_compare_default", JSON.stringify(arr));
+    document.getElementById("compareBackdrop").classList.add("hidden");
+    versionsView.selected.size >= 2 && openCompareModal();
+  });
+  panel.appendChild(setDefault);
+  body.insertBefore(panel, body.firstChild.nextSibling);
+}
+
+// ----- READ ME (now lives inside the ? Help modal — see openHelp) -----
+function getReadmeHtml() {
+  return `
+  <div class="readme">
+    <p>This is the <strong>Moab Early App v1</strong>. A single-file HTML companion to your "Moab Early" Excel model. Every input editable. Every formula transparent. All math faithfully follows your original NOI / cap-stack / sale waterfall structure — nothing replaces it; only adds.</p>
+
+    <h3>How to use</h3>
+    <p><strong>Inputs tab</strong> holds every editable variable. Yellow cells are user inputs. Edits cascade everywhere instantly — NOI, Sale, Sensitivity, Charts, Summary all recompute in the same render frame.</p>
+    <p><strong>Investor Team tab</strong> is the cap stack. Each member has a contribution and an ownership %. Use <em>Equal-Lock Group</em> (1, 2, 3, 4) to mark members who should split a combined % equally. Use <em>Auto-deduct</em> on one member to make their % auto-fill as 100% − sum(others). Cap stack must equal 100% before saving a version.</p>
+    <p><strong>Sensitivity tab</strong> shows three live two-way tables. Color-coded red→yellow→green. Updates as Inputs change.</p>
+    <p><strong>Versions tab</strong> is the browser of all saved snapshots. Filter by price, team count, date range. Default sort = last-edited descending. Select 2+ rows → Compare button.</p>
+
+    <h3>Save / Load / Undo / Redo</h3>
+    <p><strong>Autosave</strong> runs every ~400ms after a change. If you close the tab and come back, your last work is restored from local browser storage (IndexedDB). No login. No cloud.</p>
+    <p><strong>Save Version</strong> (top right) creates a versioned snapshot. Each version records what changed since its parent (manual edits only — cascade outputs aren't listed because they always change).</p>
+    <p><strong>Undo / Redo</strong> via Cmd-Z / Cmd-Shift-Z (or Ctrl-Z / Ctrl-Shift-Z). Stack of 200 actions. Survives across versions.</p>
+    <p><strong>Browser Back / Forward</strong> navigates between tabs. Mac swipe gestures and iOS swipe also work.</p>
+
+    <h3>Templates</h3>
+    <p>The <strong>+ New</strong> button opens a template picker. The Base template matches your Moab Early Base case ($1.225M strike, $9K rent, 80% LTV, 4×$70K + EM + JE 40%). Save your own templates from Settings → Templates → Save current as new template.</p>
+
+    <h3>Add to Mac dock / iOS home screen</h3>
+    <p><strong>iPhone / iPad:</strong> open this page in Safari, tap Share → Add to Home Screen. The icon opens the app full-screen, no browser chrome.</p>
+    <p><strong>Mac (Sonoma+):</strong> open in Safari, File → Add to Dock. Or in Chrome, click the install icon in the URL bar.</p>
+
+    <h3>Settings</h3>
+    <p>The ⚙ icon opens settings. Configure default values for new deals, change the NOI projection length (default 10 years), choose the address autocomplete provider (Nominatim free, Google Places opt-in with API key), and manage templates.</p>
+
+    <h3>Cascading correctness</h3>
+    <p>Every input change triggers a full re-evaluation of the calculation graph in a single render frame. There are no partial updates. Any cascade bug is a release blocker.</p>
+
+    <h3>Privacy</h3>
+    <p>Everything stays local: IndexedDB in your browser. No server. No analytics. No telemetry. The xlsx truth source is your file. The version snapshots save to a folder you choose.</p>
+
+    <h3>Original Moab Early model</h3>
+    <p>Your original model lives untouched at <code>KNOW/260425_MoabEarly_LeadInvestorModel_v1.xlsx</code>. This app is mathematically faithful to it (within $50 across all key outputs — small dollar deltas come from your model's Misc-OpEx incrementing $1/yr, which I treated as a typo and used flat $6,000 instead).</p>
+
+    <p style="margin-top: 30px; color: var(--gray-label); font-size: 11px;">
+      Built April 2026 for John Able. John Early · jpearly@gmail.com · 435-260-8260
+    </p>
+  </div>`;
+}
+
+function renderReadme() { /* Read Me tab is gone — content shown via openHelp() into the ? modal */ }
+
+// ============================================================
+// 12. SETTINGS MODAL
+// ============================================================
+
+async function openSettings() {
+  const body = document.getElementById("settingsBody");
+  body.innerHTML = "";
+
+  // Section 1: NOI projection + provider
+  body.appendChild(el("h3", null, "App Settings"));
+  body.appendChild(el("p", {className: "kv-hint", style: "margin: 6px 0 12px 0;"},
+    "NOI projection length is now in the Inputs tab → EXIT section."));
+  const settingsKv = el("div", {className: "kv"});
+  settingsKv.appendChild(el("div", {className: "kv-label"}, "Autocomplete provider"));
+  const provSel = el("select");
+  [["nominatim","OpenStreetMap Nominatim (free)"],["google","Google Places (requires API key)"]].forEach(o => {
+    const op = el("option", {value: o[0]}, o[1]);
+    if (state.meta.autocomplete_provider === o[0]) op.selected = true;
+    provSel.appendChild(op);
+  });
+  provSel.addEventListener("change", () => { state.meta.autocomplete_provider = provSel.value; autosave(); });
+  const provVal = el("div", {className: "kv-value"}); provVal.appendChild(provSel);
+  settingsKv.appendChild(provVal);
+  settingsKv.appendChild(el("div", {className: "kv-hint"}, "Used in Inputs → property address (Phase 5)"));
+
+  settingsKv.appendChild(el("div", {className: "kv-label"}, "Google Places API key"));
+  const keyInput = el("input", {type: "text", value: state.meta.google_places_api_key || "", placeholder: "leave blank for Nominatim"});
+  keyInput.addEventListener("change", () => { state.meta.google_places_api_key = keyInput.value; autosave(); });
+  const keyVal = el("div", {className: "kv-value"}); keyVal.appendChild(keyInput);
+  settingsKv.appendChild(keyVal);
+  settingsKv.appendChild(el("div", {className: "kv-hint"}, "Optional. $200/mo free tier."));
+  body.appendChild(settingsKv);
+
+  // Section 2: Templates
+  body.appendChild(el("h3", null, "Templates"));
+  body.appendChild(el("p", {className: "kv-hint"}, "Templates seed new deals with default values. Built-in Base cannot be deleted but can be duplicated."));
+
+  const tmplTbl = el("table", {className: "grid"});
+  tmplTbl.appendChild(el("thead", null, el("tr", null, [
+    el("th", null, "Name"),
+    el("th", null, "Default?"),
+    el("th", null, ""),
+  ])));
+  const tmplBody = el("tbody");
+  const defaultId = localStorage.getItem("moab_default_template") || DEFAULT_TEMPLATE.template_id;
+  templates.forEach(t => {
+    const tr = el("tr");
+    tr.appendChild(el("td", {className: "label"}, t.template_name + (t.immutable ? " (built-in)" : "")));
+    const dCell = el("td");
+    const dRadio = el("input", {type: "radio", name: "defaultTemplate"});
+    dRadio.checked = t.template_id === defaultId;
+    dRadio.addEventListener("change", () => { localStorage.setItem("moab_default_template", t.template_id); toast("Default template updated"); });
+    dCell.appendChild(dRadio);
+    tr.appendChild(dCell);
+    const aTd = el("td");
+    const dup = el("button", {className: "btn"}, "Duplicate");
+    dup.addEventListener("click", async () => {
+      const copy = JSON.parse(JSON.stringify(t));
+      copy.template_id = uuid();
+      copy.template_name = t.template_name + " (copy)";
+      copy.immutable = false;
+      await saveTemplate(copy);
+      openSettings();
+    });
+    aTd.appendChild(dup);
+    if (!t.immutable) {
+      const del = el("button", {className: "btn", style: "margin-left: 4px;"}, "Delete");
+      del.addEventListener("click", async () => {
+        if (!confirm("Delete template '" + t.template_name + "'?")) return;
+        await deleteTemplate(t.template_id);
+        openSettings();
+      });
+      aTd.appendChild(del);
+    }
+    tr.appendChild(aTd);
+    tmplBody.appendChild(tr);
+  });
+  tmplTbl.appendChild(tmplBody);
+  body.appendChild(tmplTbl);
+
+  // Save current as new template
+  const saveCur = el("div", {style: "margin-top: 12px; display: flex; gap: 6px; align-items: center;"});
+  const tmplName = el("input", {type: "text", placeholder: "New template name", style: "padding: 4px 6px; border: 1px solid var(--gray-border); flex: 1;"});
+  const saveBtn = el("button", {className: "btn btn-primary"}, "Save current state as template");
+  saveBtn.addEventListener("click", async () => {
+    if (!tmplName.value.trim()) { toast("Enter a name"); return; }
+    // Warn but don't block if cap stack isn't 100% — templates can stage incomplete deals
+    if (!computed.cap_stack_ok) {
+      const ok = confirm("Current cap stack is " + fmtPct(computed.team_total_pct) + " (not 100%). Save template anyway? New deals from this template will inherit the incomplete stack.");
+      if (!ok) return;
+    }
+    const t = {
+      template_id: uuid(),
+      template_name: tmplName.value.trim(),
+      immutable: false,
+      defaults: {},
+      team_seed: JSON.parse(JSON.stringify(state.team_members)),
+      questions_seed: JSON.parse(JSON.stringify(state.questions || [])),
+      meta: JSON.parse(JSON.stringify(state.meta)),
+      group_totals: JSON.parse(JSON.stringify(state.group_totals || {})),
+    };
+    Object.keys(FIELDS).forEach(k => { t.defaults[k] = state[k]; });
+    await saveTemplate(t);
+    tmplName.value = "";
+    openSettings();
+  });
+  saveCur.appendChild(tmplName);
+  saveCur.appendChild(saveBtn);
+  body.appendChild(saveCur);
+
+  document.getElementById("settingsBackdrop").classList.remove("hidden");
+}
+
+// ============================================================
+// 13. NEW DEAL MODAL
+// ============================================================
+
+async function openNewDeal() {
+  // Refresh templates in case another tab modified them
+  await loadTemplates();
+
+  const body = document.getElementById("newDealBody");
+  body.innerHTML = "";
+
+  const lastUsed = getPreferredTemplate();
+  const others = templates.filter(t => t.template_id !== lastUsed.template_id);
+  const userDefaultId = localStorage.getItem("moab_default_template") || "";
+  const featuredLabel = (lastUsed.template_id === userDefaultId) ? "Your default template:" : "Last used template:";
+
+  // Featured: default-or-last-used template at top, prominent card
+  body.appendChild(el("p", {className: "kv-hint", style: "margin-bottom: 8px;"}, featuredLabel));
+  const lastCard = el("div", {style: "border: 2px solid var(--navy); border-radius: 4px; padding: 12px; background: #F4F8FD; cursor: pointer; margin-bottom: 16px;"});
+  lastCard.appendChild(el("div", {style: "font-weight: 700; font-size: 14px; color: var(--navy);"}, lastUsed.template_name));
+  lastCard.appendChild(el("div", {className: "kv-hint", style: "margin-top: 4px;"},
+    (lastUsed.immutable ? "Built-in. " : "User-saved. ") +
+    "Defaults: " + fmt$(lastUsed.defaults.purchase_price) + " price · " +
+    fmt$(lastUsed.defaults.rent_year_1_monthly) + "/mo rent · " +
+    Math.round(lastUsed.defaults.loan_to_value * 100) + "% LTV · " +
+    Math.round(lastUsed.defaults.loan_interest_rate * 1000) / 10 + "% rate"));
+  let picked = lastUsed.template_id;
+  lastCard.classList.add("picked-card");
+  lastCard.style.outline = "3px solid var(--navy)";
+  lastCard.addEventListener("click", () => {
+    picked = lastUsed.template_id;
+    document.querySelectorAll(".picked-card").forEach(el => el.style.outline = "none");
+    lastCard.style.outline = "3px solid var(--navy)";
+  });
+  body.appendChild(lastCard);
+
+  if (others.length > 0) {
+    body.appendChild(el("p", {className: "kv-hint", style: "margin-bottom: 8px;"}, "Other templates:"));
+    others.forEach(t => {
+      const card = el("div", {className: "picked-card", style: "border: 1px solid var(--gray-border); border-radius: 4px; padding: 10px; cursor: pointer; margin-bottom: 6px;"});
+      card.appendChild(el("div", {style: "font-weight: 600;"}, t.template_name));
+      card.appendChild(el("div", {className: "kv-hint", style: "margin-top: 2px;"},
+        (t.immutable ? "Built-in. " : "User-saved. ") +
+        "Defaults: " + fmt$(t.defaults.purchase_price) + " price · " +
+        fmt$(t.defaults.rent_year_1_monthly) + "/mo rent · " +
+        Math.round(t.defaults.loan_to_value * 100) + "% LTV"));
+      card.addEventListener("click", () => {
+        picked = t.template_id;
+        document.querySelectorAll(".picked-card").forEach(el => el.style.outline = "none");
+        card.style.outline = "3px solid var(--navy)";
+      });
+      body.appendChild(card);
+    });
+  }
+
+  document.getElementById("newDealBackdrop").classList.remove("hidden");
+  document.getElementById("newDealCreate").onclick = async () => {
+    const t = templates.find(tt => tt.template_id === picked) || DEFAULT_TEMPLATE;
+    state = newDealFromTemplate(t);
+    undoStack = []; redoStack = [];
+    recompute();
+    setLastUsedTemplate(t.template_id);
+    await dbPut("autosave", {id: "current_draft", state: state, saved_at: todayISO()});
+    document.getElementById("newDealBackdrop").classList.add("hidden");
+    refreshDealName();
+    activeTab = "inputs";   // Drop into Inputs to fill the new deal
+    renderActiveTab();
+    updateUndoRedoUI();
+    toast("New deal created from " + t.template_name);
+  };
+}
+
+// ============================================================
+// 14. KEYBOARD + HISTORY API
+// ============================================================
+
+function bindKeyboard() {
+  document.addEventListener("keydown", (e) => {
+    const meta = e.metaKey || e.ctrlKey;
+    if (meta && e.key === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
+    else if ((meta && e.shiftKey && e.key === "Z") || (meta && e.key === "y")) { e.preventDefault(); redo(); }
+    else if (meta && e.key === "[") { e.preventDefault(); navTab(-1); }
+    else if (meta && e.key === "]") { e.preventDefault(); navTab(1); }
+    else if (meta && e.key === "s") { e.preventDefault(); saveVersion(); }
+  });
+}
+
+function navTab(delta) {
+  const tabs = Array.from(document.querySelectorAll(".tabs button")).map(b => b.dataset.tab);
+  const idx = tabs.indexOf(activeTab);
+  const next = (idx + delta + tabs.length) % tabs.length;
+  switchTab(tabs[next]);
+}
+
+function switchTab(tab) {
+  if (activeTab === tab) return;
+  activeTab = tab;
+  if (!suppressHistory) {
+    history.pushState({tab: tab}, "", "#" + tab);
+  }
+  // Cleanup transient UI from prior tab
+  _hideTip();
+  hideAddrDropdown();
+  renderActiveTab();
+  // Re-bind autocomplete if Inputs tab just rendered
+  bindAddressAutocompleteForActiveTab();
+}
+
+window.addEventListener("popstate", (e) => {
+  const tab = (e.state && e.state.tab) || (location.hash && location.hash.slice(1)) || "summary";
+  if (document.querySelector(`section[data-tab="${tab}"]`)) {
+    suppressHistory = true;
+    activeTab = tab;
+    renderActiveTab();
+    suppressHistory = false;
+  }
+});
+
+// ============================================================
+// 15. UI BINDINGS
+// ============================================================
+
+function bindUI() {
+  document.querySelectorAll(".tabs button").forEach(b => {
+    b.addEventListener("click", () => switchTab(b.dataset.tab));
+  });
+  document.getElementById("undoBtn").addEventListener("click", undo);
+  document.getElementById("redoBtn").addEventListener("click", redo);
+  document.getElementById("newDealBtn").addEventListener("click", openNewDeal);
+  document.getElementById("saveVersionBtn").addEventListener("click", saveVersion);
+  document.getElementById("settingsBtn").addEventListener("click", openSettings);
+  document.getElementById("helpBtn").addEventListener("click", openHelp);
+
+  // New header buttons (DEALS, Feedback, Claude)
+  const dealsBtn = document.getElementById("dealsBtn");
+  if (dealsBtn) dealsBtn.addEventListener("click", openDealsModal);
+  const feedbackBtn = document.getElementById("feedbackBtn");
+  if (feedbackBtn) feedbackBtn.addEventListener("click", openFeedbackModal);
+  const claudeBtn = document.getElementById("claudeBtn");
+  if (claudeBtn) claudeBtn.addEventListener("click", openClaudeModal);
+
+  // NOI sub-actions: Sensitivity, Charts (open as modals)
+  const sensBtn = document.getElementById("openSensitivityBtn");
+  if (sensBtn) sensBtn.addEventListener("click", openSensitivityModal);
+  const chartsBtn = document.getElementById("openChartsBtn");
+  if (chartsBtn) chartsBtn.addEventListener("click", openChartsModal);
+
+  // Notes modal save
+  const notesSave = document.getElementById("notesSaveBtn");
+  if (notesSave) notesSave.addEventListener("click", () => {
+    if (_notesEditingIdx == null) return;
+    const newNotes = document.getElementById("notesTextarea").value;
+    setTeamMember(_notesEditingIdx, "notes", newNotes);
+    document.getElementById("notesBackdrop").classList.add("hidden");
+    _notesEditingIdx = null;
+  });
+
+  // Claude popup tabs (placeholder UI)
+  document.querySelectorAll(".claude-tab").forEach(t => {
+    t.addEventListener("click", () => {
+      document.querySelectorAll(".claude-tab").forEach(tt => tt.classList.remove("active"));
+      t.classList.add("active");
+    });
+  });
+
+  document.querySelectorAll("[data-close]").forEach(b => {
+    b.addEventListener("click", () => {
+      const k = b.getAttribute("data-close");
+      const bd = document.getElementById(k + "Backdrop");
+      if (bd) bd.classList.add("hidden");
+    });
+  });
+  bindKeyboard();
+  bindTooltips();
+  bindDevPanel();
+  bindBroadcastChannel();
+}
+
+// === Modal openers (Deal Browser, Feedback, Sensitivity, Charts, Claude) ===
+
+function openDealsModal() {
+  document.getElementById("dealsBackdrop").classList.remove("hidden");
+  // Render the existing versions/deals view into the modal body
+  const dealsBody = document.getElementById("dealsBody");
+  // Move/clone the renderVersions output here. Easiest: run renderVersions
+  // pointed at a different target. We re-use the existing #versionsBody by
+  // moving it temporarily, or just re-render fresh.
+  renderVersionsInto(dealsBody);
+}
+
+function openFeedbackModal() {
+  document.getElementById("feedbackBackdrop").classList.remove("hidden");
+  renderQuestionsInto(document.getElementById("feedbackBody"));
+}
+
+function openSensitivityModal() {
+  document.getElementById("sensitivityBackdrop").classList.remove("hidden");
+  renderSensitivityInto(document.getElementById("sensitivityModalBody"));
+}
+
+function openChartsModal() {
+  document.getElementById("chartsBackdrop").classList.remove("hidden");
+  // Render charts into modal body. Chart.js needs the canvas to be in the DOM
+  // before drawing, so render-then-build is the right order.
+  renderChartsInto(document.getElementById("chartsModalBody"));
+}
+
+function openClaudeModal() {
+  document.getElementById("claudeBackdrop").classList.remove("hidden");
+}
+
+let _notesEditingIdx = null;
+function openNotesModal(idx) {
+  const m = state.team_members[idx];
+  if (!m) return;
+  _notesEditingIdx = idx;
+  document.getElementById("notesMemberName").textContent = (m.name && m.name.trim()) || "(member " + (idx + 1) + ")";
+  document.getElementById("notesTextarea").value = m.notes || "";
+  document.getElementById("notesBackdrop").classList.remove("hidden");
+  // Focus the textarea after the modal animates in
+  setTimeout(() => { try { document.getElementById("notesTextarea").focus(); } catch (e) {} }, 50);
+}
+
+// ============================================================
+// 16. SERVICE WORKER (PWA offline)
+// ============================================================
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("service-worker.js").catch(e => console.warn("SW registration failed", e));
+  });
+}
+
+// ============================================================
+// 16B. TOOLTIPS (web hover + mobile long-press, ~500ms)
+// ============================================================
+
+let _tipEl = null;
+let _tipPressTimer = null;
+
+function _showTip(target, text) {
+  _hideTip();
+  _tipEl = document.createElement("div");
+  _tipEl.className = "tooltip-bubble";
+  _tipEl.textContent = text;
+  document.body.appendChild(_tipEl);
+  const tr = target.getBoundingClientRect();
+  const r  = _tipEl.getBoundingClientRect();
+  let left = tr.left + tr.width / 2 - r.width / 2;
+  let top  = tr.top - r.height - 8;
+  if (top < 6) top = tr.bottom + 8;        // flip below if no room above
+  left = Math.max(6, Math.min(left, window.innerWidth - r.width - 6));
+  _tipEl.style.left = left + "px";
+  _tipEl.style.top  = top + "px";
+}
+
+function _hideTip() {
+  if (_tipEl) { _tipEl.remove(); _tipEl = null; }
+}
+
+function bindTooltips() {
+  // Web: hover (mouse only — touch devices fire mouseover from emulation; gate with pointer media)
+  document.body.addEventListener("mouseover", (e) => {
+    if (!window.matchMedia("(hover: hover)").matches) return;
+    const t = e.target.closest("[data-tip]");
+    if (!t) return;
+    _showTip(t, t.getAttribute("data-tip"));
+  });
+  document.body.addEventListener("mouseout", (e) => {
+    if (e.target.closest("[data-tip]")) _hideTip();
+  });
+  // Mobile: long-press
+  document.body.addEventListener("touchstart", (e) => {
+    // Don't compete with native iOS magnifier/select menus on input fields
+    if (e.target.matches("input, select, textarea")) return;
+    const t = e.target.closest("[data-tip]");
+    if (!t) return;
+    clearTimeout(_tipPressTimer);
+    _tipPressTimer = setTimeout(() => _showTip(t, t.getAttribute("data-tip")), 500);
+  }, {passive: true});
+  document.body.addEventListener("touchend", () => {
+    clearTimeout(_tipPressTimer);
+    setTimeout(_hideTip, 1500);
+  }, {passive: true});
+  document.body.addEventListener("touchmove", () => {
+    clearTimeout(_tipPressTimer);
+    _hideTip();
+  }, {passive: true});
+  // Hide on scroll/click
+  document.addEventListener("scroll", _hideTip, true);
+  document.addEventListener("click", () => setTimeout(_hideTip, 100), true);
+}
+
+// ============================================================
+// 16C. HELP MODAL
+// ============================================================
+
+function openHelp() {
+  // Help modal now serves the full Read Me content (Read Me tab was retired
+  // and folded into here per the 260426 restructure).
+  const body = document.getElementById("helpBody");
+  if (body) body.innerHTML = getReadmeHtml();
+  document.getElementById("helpBackdrop").classList.remove("hidden");
+}
+
+// ============================================================
+// 16D. TESTS (in-browser, gated to non-PWA in initDevMode)
+// ============================================================
+
+const TESTS = {
+  cascadeIntegrity: function() {
+    // Mutate purchase_price by +10%, verify total_profit changes.
+    // Test-only direct state mutation: bypasses setField() intentionally
+    // because setField triggers autosave + render and would contaminate
+    // measurement timing. State fully restored before recompute() below.
+    const beforeProfit = computed.total_profit;
+    const beforeLoan = computed.loan_amount;
+    const orig = state.purchase_price;
+    state.purchase_price = orig * 1.1;
+    const newComputed = compute(state);
+    state.purchase_price = orig;       // restore
+    recompute();                       // ensure post-test computed reflects unchanged state
+    if (Math.abs(newComputed.loan_amount - beforeLoan) < 1) {
+      throw new Error("loan_amount did not cascade from purchase_price change");
+    }
+    if (newComputed.total_profit === beforeProfit) {
+      throw new Error("total_profit did not change after purchase_price mutation");
+    }
+  },
+
+  truthSourceFidelity: function() {
+    // Spot-check key outputs against JWA's Base case (within tolerance)
+    // Tolerances match TEST_SUITE.md § Pass Criteria.
+    const checks = [
+      ["equity_required",      computed.equity_required, 273800, 50],
+      ["loan_amount",          computed.loan_amount, 980000, 1],
+      ["monthly_payment",      Math.abs(computed.monthly_payment), 7242, 5],
+      ["year_1_noi",           computed.years[0] && computed.years[0].noi, 97680, 5],
+      ["sale_price",           computed.sale_price, 1441071, 100],
+      ["total_profit",         computed.total_profit, 213685, 200],
+      ["cap_stack_total_pct",  computed.team_total_pct, 1.0, 0.0005],
+    ];
+    const fails = [];
+    for (const [name, my, expected, tol] of checks) {
+      if (my == null || Math.abs(my - expected) > tol) {
+        fails.push(`${name}: got ${my}, expected ${expected} ± ${tol}`);
+      }
+    }
+    if (fails.length) throw new Error("Fidelity drift: " + fails.join("; "));
+  },
+
+  stateShape: function() {
+    const required = ["deal_id", "deal_name", "purchase_price", "team_members", "questions", "meta", "created_at", "last_edited_date"];
+    const missing = required.filter(k => !(k in state));
+    if (missing.length) throw new Error("Missing state keys: " + missing.join(", "));
+    if (!Array.isArray(state.team_members)) throw new Error("team_members must be array");
+    if (state.team_members.length < 1) throw new Error("team_members must have ≥1 member");
+    if (!state.meta || typeof state.meta.noi_projection_years !== "number") throw new Error("meta.noi_projection_years must be number");
+  },
+};
+
+async function runAllTests() {
+  const results = [];
+  for (const [name, fn] of Object.entries(TESTS)) {
+    const start = performance.now();
+    try {
+      await fn();
+      results.push({name, status: "PASS", ms: +(performance.now() - start).toFixed(2)});
+    } catch (e) {
+      results.push({name, status: "FAIL", ms: +(performance.now() - start).toFixed(2), error: e.message});
+    }
+  }
+  return results;
+}
+
+// ============================================================
+// 16E. DEV MODE PANEL (web only, never in PWA standalone)
+// ============================================================
+
+function isPWAStandalone() {
+  try {
+    return window.matchMedia("(display-mode: standalone)").matches ||
+           window.navigator.standalone === true;
+  } catch (e) { return false; }
+}
+
+function isDevModeAllowed() {
+  if (isPWAStandalone()) return false;
+  const u = new URLSearchParams(location.search);
+  return u.get("dev") === "1" || localStorage.getItem("abco_dev") === "1";
+}
+
+function showDevToggleButton() {
+  // Show the small "Dev" button in topbar only when not PWA-standalone.
+  // (Cmd+Shift+D works regardless when not PWA.)
+  const btn = document.getElementById("devToggleBtn");
+  if (!btn) return;
+  btn.hidden = isPWAStandalone();
+}
+
+function toggleDevPanel(force) {
+  if (isPWAStandalone()) return;       // hard-gate: never in PWA
+  const panel = document.getElementById("devPanel");
+  const willShow = force === true ? true : (force === false ? false : panel.classList.contains("hidden"));
+  if (willShow) {
+    panel.classList.remove("hidden");
+    localStorage.setItem("abco_dev", "1");
+  } else {
+    panel.classList.add("hidden");
+    localStorage.removeItem("abco_dev");
+  }
+}
+
+function devLog(msg, cls) {
+  const log = document.getElementById("devLog");
+  if (!log) return;
+  const span = cls ? `<span class="${cls}">${msg}</span>` : msg;
+  log.innerHTML += `[${new Date().toLocaleTimeString()}] ${span}\n`;
+  log.scrollTop = log.scrollHeight;
+}
+
+function bindDevPanel() {
+  showDevToggleButton();
+  if (isDevModeAllowed()) toggleDevPanel(true);
+
+  const tBtn = document.getElementById("devToggleBtn");
+  if (tBtn) tBtn.addEventListener("click", () => toggleDevPanel());
+
+  const cBtn = document.querySelector(".close-dev");
+  if (cBtn) cBtn.addEventListener("click", () => toggleDevPanel(false));
+
+  // 1. Run All Tests
+  const runBtn = document.getElementById("dev-runAllTests");
+  if (runBtn) runBtn.addEventListener("click", async () => {
+    devLog("Running tests…");
+    const results = await runAllTests();
+    let pass = 0, fail = 0;
+    results.forEach(r => {
+      if (r.status === "PASS") { pass++; devLog(`PASS ${r.name} (${r.ms}ms)`, "test-pass"); }
+      else { fail++; devLog(`FAIL ${r.name} (${r.ms}ms) — ${r.error}`, "test-fail"); }
+    });
+    devLog(`— ${pass} pass / ${fail} fail —`);
+  });
+
+  // 2. Populate Example Deals
+  const popBtn = document.getElementById("dev-populateExamples");
+  if (popBtn) popBtn.addEventListener("click", async () => {
+    devLog("Populating example deals…");
+    const examples = [
+      {short: "Demo_Strip_Center",  name: "Demo: Strip Center",  price: 850000,  rent: 7500,  hold: 5,  cap: 0.08},
+      {short: "Demo_Warehouse",     name: "Demo: Warehouse",     price: 1500000, rent: 11000, hold: 7,  cap: 0.075},
+      {short: "Demo_Edge_Case",     name: "Demo: Edge Case",     price: 500000,  rent: 5000,  hold: 10, cap: 0.12},
+    ];
+    let count = 0;
+    for (const ex of examples) {
+      const ns = newDealFromTemplate(DEFAULT_TEMPLATE);
+      ns.deal_name = ex.name;
+      // (deal_short_name removed; getDealShortName() derives from deal_name)
+      ns.purchase_price = ex.price;
+      ns.rent_year_1_monthly = ex.rent;
+      ns.hold_period_years = ex.hold;
+      ns.exit_cap_rate = ex.cap;
+      ns.is_test_data = true;
+      const v = {
+        version_id: uuid(),
+        deal_id: ns.deal_id,
+        deal_short_name: getDealShortName(ns),
+        saved_at: todayISO(),
+        parent_version_id: null,
+        state: ns,
+        manual_changes: [],
+        is_test_data: true,
+      };
+      await dbPut("versions", v);
+      count++;
+    }
+    devLog(`Populated ${count} demo deals tagged is_test_data=true`);
+    if (activeTab === "versions") renderActiveTab();
+  });
+
+  // 3. Clear Test Data
+  const clearBtn = document.getElementById("dev-clearTestData");
+  if (clearBtn) clearBtn.addEventListener("click", async () => {
+    devLog("Clearing test data…");
+    const all = await dbAll("versions");
+    let removed = 0;
+    for (const v of all) {
+      if (v.is_test_data || (v.state && v.state.is_test_data)) {
+        await dbDel("versions", v.version_id);
+        removed++;
+      }
+    }
+    devLog(`Cleared ${removed} test-data versions`);
+    if (activeTab === "versions") renderActiveTab();
+  });
+
+  // 4. Health Stats
+  const hsBtn = document.getElementById("dev-healthStats");
+  if (hsBtn) hsBtn.addEventListener("click", async () => {
+    devLog("Computing health stats…");
+    const versions = await dbAll("versions");
+    const tmpls = await dbAll("templates");
+    const t0 = performance.now();
+    recompute();
+    const recomputeMs = +(performance.now() - t0).toFixed(2);
+    const stateSize = new Blob([JSON.stringify(state)]).size;
+    let quotaPct = "(navigator.storage unavailable)";
+    if (navigator.storage && navigator.storage.estimate) {
+      try {
+        const est = await navigator.storage.estimate();
+        quotaPct = ((est.usage / est.quota) * 100).toFixed(2) + "% of " + (est.quota / 1024 / 1024).toFixed(0) + "MB";
+      } catch (e) {}
+    }
+    devLog(`— Health —`);
+    devLog(`Versions saved: ${versions.length}`);
+    devLog(`User templates: ${tmpls.length}`);
+    devLog(`Recompute time: ${recomputeMs}ms`);
+    devLog(`State size: ${(stateSize/1024).toFixed(2)}KB`);
+    devLog(`IndexedDB usage: ${quotaPct}`);
+    devLog(`Undo stack: ${undoStack.length} / Redo stack: ${redoStack.length}`);
+    devLog(`Active tab: ${activeTab}`);
+  });
+
+  // 5. Export State JSON
+  const exBtn = document.getElementById("dev-exportStateJSON");
+  if (exBtn) exBtn.addEventListener("click", () => {
+    devLog("Exporting state JSON…");
+    const json = JSON.stringify({state, computed}, null, 2);
+    const blob = new Blob([json], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = getDealShortName(state) + "_state.json";
+    a.click();
+    URL.revokeObjectURL(url);
+    devLog("State JSON downloaded");
+  });
+
+  // Cmd+Shift+D global toggle (also in bindKeyboard, idempotent)
+  document.addEventListener("keydown", (e) => {
+    const meta = e.metaKey || e.ctrlKey;
+    if (meta && e.shiftKey && (e.key === "D" || e.key === "d")) {
+      e.preventDefault();
+      toggleDevPanel();
+    }
+  });
+}
+
+// ============================================================
+// 17. INIT
+// ============================================================
+
+async function init() {
+  // Defensive overlay: if anything below throws, show useful error instead of white screen.
+  let phase = "starting";
+  const setSub = (msg) => {
+    const el = document.getElementById("loadingSubLabel");
+    if (el) el.textContent = msg;
+  };
+  try {
+    phase = "opening database";
+    setSub("Opening local database…");
+    try {
+      await openDB();
+    } catch (e) {
+      console.error("IndexedDB unavailable:", e);
+      // Continue without persistence — app still functions for the session
+      toast("Local storage unavailable; changes won't persist this session");
+    }
+    phase = "loading templates";
+    setSub("Loading templates…");
+    await loadTemplates();
+
+  // First-run seeding: if no versions exist anywhere, seed John's actual
+  // "Moab Early v1" deal as the first saved version. The active state then
+  // becomes that deal so the app opens to John's actual data on first load.
+  phase = "seeding first deal";
+  setSub("Setting up your first deal…");
+  const seeded = await seedMoabEarlyV1IfFirstRun();
+
+  phase = "restoring autosave";
+  setSub("Restoring your last session…");
+  const restored = await loadAutosave();
+  if (restored) {
+    state = restored;
+  } else if (seeded) {
+    state = seeded;
+    // Persist as the active draft
+    await dbPut("autosave", {id: "current_draft", state: state, saved_at: todayISO()});
+  } else {
+    state = newDealFromTemplate(DEFAULT_TEMPLATE);
+  }
+
+  // Schema completeness check — if restored autosave is from an older
+  // version of the app or got corrupted, backfill missing FIELDS keys
+  // from DEFAULT_TEMPLATE.defaults so compute() doesn't NaN-cascade.
+  let backfilled = 0;
+  Object.keys(FIELDS).forEach(k => {
+    if (state[k] === undefined || state[k] === null) {
+      state[k] = DEFAULT_TEMPLATE.defaults[k];
+      backfilled++;
+    }
+  });
+  if (backfilled > 0) {
+    console.warn(`Schema backfill: filled ${backfilled} missing fields from DEFAULT_TEMPLATE`);
+  }
+  // Migrate legacy group totals (recovers from pre-260426 group bug where
+  // individual member %s could drift below their intended group total).
+  migrateGroupTotals(state);
+  // Migrate noi_projection_years from state.meta to top-level state (260426)
+  if (state.meta && state.meta.noi_projection_years != null && state.noi_projection_years == null) {
+    state.noi_projection_years = state.meta.noi_projection_years;
+  }
+  // Ensure required structure
+  if (!state.meta) state.meta = {noi_projection_years: 10, autocomplete_provider: "nominatim", google_places_api_key: ""};
+  if (!state.team_members) state.team_members = JSON.parse(JSON.stringify(DEFAULT_TEMPLATE.team_seed));
+  if (!state.questions) state.questions = JSON.parse(JSON.stringify(DEFAULT_TEMPLATE.questions_seed));
+  if (!state.deal_id) state.deal_id = uuid();
+  if (!state.created_at) state.created_at = todayISO();
+  if (!state.last_edited_date) state.last_edited_date = todayISO();
+
+  phase = "computing";
+  setSub("Computing the model…");
+  applyAutoDeduct();
+  recompute();
+  bindUI();
+  refreshDealName();
+
+  // Restore tab from hash
+  const hash = location.hash.slice(1);
+  if (hash && document.querySelector(`section[data-tab="${hash}"]`)) {
+    activeTab = hash;
+  }
+  renderActiveTab();
+  bindAddressAutocompleteForActiveTab();
+  updateUndoRedoUI();
+
+  // Hide loading overlay — app is live
+  const loader = document.getElementById("loadingOverlay");
+  if (loader) loader.classList.add("hidden");
+  } catch (err) {
+    console.error("init() failed in phase:", phase, err);
+    const loader = document.getElementById("loadingOverlay");
+    if (loader) {
+      loader.classList.add("error");
+      loader.innerHTML =
+        '<div class="pulse"></div>' +
+        '<div class="label" style="color: var(--red-neg)">App failed to load</div>' +
+        '<div class="sub">Phase: ' + phase + '<br>' +
+        'Error: ' + (err && err.message || String(err)) + '<br><br>' +
+        'Try a hard reload (Cmd+Shift+R) or clear browser cache.<br>' +
+        'If problem persists, your IndexedDB may be corrupted — open DevTools → Application → IndexedDB → "moab_early_app" → Delete.</div>';
+    }
+  }
+}
+
+init();
+</script>
+
+<!-- External libs (cached by service worker after first load) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
+
+</body>
+</html>
