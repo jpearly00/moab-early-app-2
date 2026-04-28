@@ -182,15 +182,13 @@
   /* ---------- SECTIONS ---------- */
   section.tab-content { display: none; }
   section.tab-content.active { display: block; }
-  section h2 {
-    font-size: 15px;
-    color: var(--navy);
-    margin: 0 0 12px 0;
-    padding-bottom: 6px;
-    border-bottom: 2px solid var(--navy);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+  /* Hide the redundant tab title — tab nav above already shows the active tab. */
+  section.tab-content > h2 {
+    display: none;
+  }
+  /* Tighten top spacing now that the h2 is gone */
+  main {
+    padding-top: 8px;
   }
   section h3 {
     font-size: 13px;
