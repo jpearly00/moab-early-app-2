@@ -1037,6 +1037,33 @@
     outline-offset: -1px;
   }
 
+  /* Summary tab: section headers carry a small "copy section" button on
+     the right. Click → clean text representation of that section lands on
+     the clipboard, ready to paste into email / Slack / Google Doc. */
+  h3.summary-section-h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  h3.summary-section-h3 .copy-section-btn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--gray-border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+    color: var(--gray-label);
+    transition: background 0.08s ease, border-color 0.08s ease;
+  }
+  h3.summary-section-h3 .copy-section-btn:hover {
+    background: #FFF;
+    border-color: var(--navy);
+    color: var(--navy);
+  }
+  h3.summary-section-h3 .copy-section-btn:active { transform: translateY(1px); }
+
   /* Property-address favicon launchers — pinned to the right edge of the
      white LABEL cell (NOT inside the yellow input). Two square buttons
      side-by-side with the actual brand favicons. .kv-label is already
@@ -1583,7 +1610,7 @@
       <span class="brand">ABCOapp</span>
       <span class="deal-name" id="dealNameDisplay">Moab Early — 805 N Main</span>
       <div class="actions actions-right">
-        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v260427-2355</span>
+        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v260428-0030</span>
         <button id="feedbackBtn" class="feedback-icon" data-tip="Q & A / Feedback (questions log)">F</button>
         <button id="helpBtn" class="help-icon" data-tip="How to use this app">?</button>
       </div>
@@ -3277,6 +3304,70 @@ function refreshDealName() {
 }
 
 // ----- SUMMARY -----
+// Compact currency for the per-investor distribution table.
+// $0..$999      -> "$XXX"
+// $1k..$999k    -> "$70k", "$91.7k"   (omit decimal when whole thousands)
+// >= $1M        -> "$1.2M"
+// Negative      -> "($70k)" accounting parens.
+// Always paired with a `title=` of the FULL amount (commas + pennies) so the
+// user can hover for the exact figure.
+function fmt$k(n) {
+  if (n === null || n === undefined || isNaN(n)) return "";
+  const neg = n < 0;
+  const abs = Math.abs(n);
+  let s;
+  if (abs >= 1e6) {
+    const m = Math.round(abs / 1e5) / 10;
+    s = "$" + (m === Math.floor(m) ? m.toFixed(0) : m.toFixed(1)) + "M";
+  } else if (abs >= 1000) {
+    const k = Math.round(abs / 100) / 10;
+    s = "$" + (k === Math.floor(k) ? k.toFixed(0) : k.toFixed(1)) + "k";
+  } else {
+    s = "$" + abs.toFixed(0);
+  }
+  return neg ? "(" + s + ")" : s;
+}
+
+// Build a clean, paste-ready text representation of a section, then write
+// to clipboard + flash a toast. Used by the "📋 copy" button next to every
+// section header on the Summary tab.
+async function copyToClipboard(text, label) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast((label || "Section") + " copied");
+  } catch (e) {
+    // Clipboard API blocked (insecure context, perms) — fall back to
+    // textarea + execCommand. Works in older Safari + clipboard-restricted
+    // contexts. NOT pretty but never fails.
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); toast((label || "Section") + " copied"); }
+    catch (e2) { toast("Copy failed"); }
+    document.body.removeChild(ta);
+  }
+}
+
+// Section header with a small "copy" affordance on the right. Returns the
+// h3 element so the caller can `appendChild` it like any other header.
+function makeSectionHeader(title, copyText, copyLabel) {
+  const h3 = el("h3", {className: "summary-section-h3"});
+  h3.appendChild(document.createTextNode(title));
+  const btn = el("button", {
+    className: "copy-section-btn",
+    title: "Copy this section to clipboard (paste into email, Slack, doc, etc.)",
+  }, "📋");
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    copyToClipboard(copyText(), copyLabel || title);
+  });
+  h3.appendChild(btn);
+  return h3;
+}
+
 function renderSummary() {
   const c = computed;
   const rows = [
@@ -3298,18 +3389,42 @@ function renderSummary() {
     ["Year-N total profit",             fmt$(c.total_profit), true],
     ["Cap stack sum",                   fmtPct(c.team_total_pct), c.cap_stack_ok],
   ];
+  const body = document.getElementById("summaryBody");
+  body.innerHTML = "";
+
+  // ----- KEY METRICS section -----
+  const dealHeading = (state.deal_name || "Deal") +
+                      (state.deal_code ? " " + state.deal_code.toUpperCase() : "");
+  body.appendChild(makeSectionHeader(
+    "Key metrics",
+    () => dealHeading + " — Key metrics\n" +
+          rows.map(r => r[0].padEnd(34) + " " + r[1]).join("\n"),
+    "Key metrics"
+  ));
   const kv = el("div", {className: "kv"});
   rows.forEach(r => {
     kv.appendChild(el("div", {className: "kv-label"}, r[0]));
     kv.appendChild(el("div", {className: "kv-value " + (r[2] ? "output" : "")}, r[1]));
     kv.appendChild(el("div", {className: "kv-hint"}, ""));
   });
-  const body = document.getElementById("summaryBody");
-  body.innerHTML = "";
   body.appendChild(kv);
 
-  // Per-investor distribution summary
-  body.appendChild(el("h3", null, "Distribution at exit"));
+  // ----- DISTRIBUTION AT EXIT section -----
+  const distRows = c.team_distributions.filter(d => d.name);
+  body.appendChild(makeSectionHeader(
+    "Distribution at exit",
+    () => {
+      // Plain-text table that paste-readable into email/docs/Slack.
+      const header = ["Member", "Contribution", "% of equity", "Profit", "Total return"];
+      const lines = [dealHeading + " — Distribution at exit", header.join("\t")];
+      distRows.forEach(d => lines.push([
+        d.name, fmt$(d.contribution), fmtPct(d.ownership_pct),
+        fmt$(d.profit), fmt$(d.total_return),
+      ].join("\t")));
+      return lines.join("\n");
+    },
+    "Distribution"
+  ));
   const tbl = el("table", {className: "grid"});
   const thead = el("thead", null, el("tr", null, [
     el("th", null, "Member"),
@@ -3320,14 +3435,18 @@ function renderSummary() {
   ]));
   tbl.appendChild(thead);
   const tbody = el("tbody");
-  c.team_distributions.forEach(d => {
-    if (!d.name) return;
+  // $-cell builder — compact "k" display + hover-for-full-amount.
+  const $kCell = (n, klass) => {
+    const td = el("td", {className: klass || "num", title: fmt$(n)}, fmt$k(n));
+    return td;
+  };
+  distRows.forEach(d => {
     tbody.appendChild(el("tr", null, [
       el("td", {className: "label"}, d.name),
-      el("td", {className: "num"}, fmt$(d.contribution)),
+      $kCell(d.contribution),
       el("td", {className: "num"}, fmtPct(d.ownership_pct)),
-      el("td", {className: "num output"}, fmt$(d.profit)),
-      el("td", {className: "num"}, fmt$(d.total_return)),
+      $kCell(d.profit, "num output"),
+      $kCell(d.total_return),
     ]));
   });
   tbl.appendChild(tbody);
