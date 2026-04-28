@@ -661,16 +661,44 @@
     min-width: 720px;
   }
   .team-table th, .team-table td { vertical-align: middle; }
-  /* # column — 2 char */
+  /* # column — 26px (was 20px, +30% per user 260428-0400) */
   .team-table th:first-child,
   .team-table td:first-child {
-    width: 20px !important;
-    min-width: 20px !important;
-    max-width: 20px !important;
+    width: 26px !important;
+    min-width: 26px !important;
+    max-width: 26px !important;
     padding: 4px 0;
     color: var(--gray-label);
-    font-size: 10px;
+    font-size: 11px;
     text-align: center;
+  }
+  /* Team table — bumped font sizes per user request 260428-0400 */
+  .team-table td, .team-table th {
+    font-size: 13px;
+  }
+  .team-table td input,
+  .team-table td select {
+    font-size: 14px;
+  }
+  /* $ prefix on team-table money cells — same treatment as Inputs tab */
+  .team-table td.money-cell {
+    position: relative;
+  }
+  .team-table td.money-cell::before {
+    content: "$";
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--navy);
+    font-family: "SF Mono", "Consolas", "Menlo", monospace;
+    font-size: 14px;
+    font-weight: 700;
+    pointer-events: none;
+  }
+  .team-table td.money-cell input {
+    padding-left: 14px !important;
+    text-align: right;
   }
   /* Contribution — wide enough for $1,234,567 with comma formatting */
   .team-table th.col-contribution,
@@ -727,14 +755,9 @@
     max-width: 50px !important;
     text-align: center;
   }
-  /* Shrink the native "The Rest" checkbox to 1/3 its rendered size. Native
-     checkboxes can't be sized reliably via width/height across browsers,
-     but `transform: scale()` works everywhere. Keep the click target ample
-     by NOT shrinking the surrounding cell padding. */
+  /* "The Rest" checkbox — back to native size (was scale(0.33), too small
+     to tap reliably on phone per user 260428-0400). */
   .team-table td.col-rest input[type="checkbox"] {
-    transform: scale(0.33);
-    transform-origin: center;
-    /* Compensates for the visual offset scale() introduces on some browsers */
     margin: 0;
   }
   .team-table th.col-rest {
@@ -835,7 +858,11 @@
   .team-table tr.auto-deduct td.input {
     background: #FFF0E0;
   }
-  .team-table tr.auto-deduct td.input input {
+  /* Scope the "looks-disabled" treatment to ONLY the Ownership % column on
+     auto-deduct rows (the actual `disabled` input). Leaving Name +
+     Contribution editable so the user can rename / set the contribution on
+     "John E (operator)" or any other auto-deduct member. */
+  .team-table tr.auto-deduct td.pct-cell input[disabled] {
     color: var(--gray-label);
     cursor: not-allowed;
   }
@@ -886,6 +913,68 @@
     z-index: 100;
   }
   .modal-backdrop.hidden { display: none; }
+  /* Compare modal must layer ABOVE the Deals modal — without an explicit
+     bump, both have z-index:100 and the later-opened one wins by source
+     order, which has been brittle. Lift compare to 110 so it always wins. */
+  #compareBackdrop { z-index: 110; }
+  /* Right-click / long-press summary popup — sits even higher so it
+     surfaces over both modals if invoked from the Deals modal. */
+  .version-summary-popup {
+    position: fixed;
+    z-index: 200;
+    background: #FFF;
+    border: 1px solid var(--navy);
+    border-radius: 4px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+    padding: 10px 12px;
+    max-width: 420px;
+    max-height: 70vh;
+    overflow: auto;
+    font-size: 12px;
+  }
+  .version-summary-popup pre {
+    margin: 0 0 8px 0;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+  }
+  .version-summary-actions { display: flex; gap: 6px; }
+  /* Inline stage select in deal browser rows */
+  .stage-select {
+    padding: 3px 6px;
+    font-size: 12px;
+    border: 1px solid var(--gray-border);
+    border-radius: 3px;
+    background: #FFF;
+  }
+  /* Row hover → reveal copy icon */
+  .versions-table .row-copy-btn {
+    opacity: 0;
+    transition: opacity 0.12s ease;
+    margin-right: 6px;
+  }
+  .versions-table tr:hover .row-copy-btn { opacity: 1; }
+  .versions-table .row-actions { white-space: nowrap; }
+  /* Filter rows */
+  .filter-stage-row, .filter-preset-row {
+    margin-top: 6px;
+    align-items: center;
+  }
+  .filter-rowlabel {
+    color: var(--navy);
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+  }
+  /* Compare toolbar — wraps so on mobile the Copy/Create buttons stack below */
+  .compare-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
   .modal {
     background: var(--bg);
     border: 1px solid var(--navy);
@@ -1839,7 +1928,7 @@
       <span class="brand">ABCOapp</span>
       <span class="deal-name" id="dealNameDisplay">Moab Early — 805 N Main</span>
       <div class="actions actions-right">
-        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v260428-0250</span>
+        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v260428-0405</span>
         <button id="feedbackBtn" class="feedback-icon" data-tip="Q & A / Feedback (questions log)">F</button>
         <button id="helpBtn" class="help-icon" data-tip="How to use this app">?</button>
       </div>
@@ -4440,11 +4529,31 @@ function renderTeam() {
     td.appendChild(gsel);
     tr.appendChild(td);
 
-    // Contribution (half-width)
-    td = el("td", {className: "input num col-contribution"});
-    inp = el("input", {type: "number", value: m.contribution || 0, step: 1000});
-    inp.addEventListener("change", () => setTeamMember(idx, "contribution", inp.value));
-    td.appendChild(inp);
+    // Contribution (half-width) — text input with thousands-comma format
+    // and a $ prefix shown via CSS. Same pattern as Inputs-tab money fields:
+    // focus shows the raw number for easy editing; blur re-formats with
+    // commas. Storage stays a Number.
+    td = el("td", {className: "input num col-contribution money-cell"});
+    const contribInp = el("input", {type: "text", inputMode: "decimal"});
+    contribInp.autocomplete = "off";
+    const fmtContrib = (n) => {
+      if (n === "" || n == null || isNaN(Number(n))) return "";
+      return Number(n).toLocaleString("en-US", {maximumFractionDigits: 2});
+    };
+    contribInp.value = fmtContrib(m.contribution);
+    contribInp.addEventListener("focus", () => {
+      contribInp.value = (m.contribution == null) ? "" : String(m.contribution);
+      setTimeout(() => { try { contribInp.select(); } catch (e) {} }, 0);
+    });
+    contribInp.addEventListener("blur", () => {
+      contribInp.value = fmtContrib(m.contribution);
+    });
+    contribInp.addEventListener("change", () => {
+      const raw = contribInp.value.replace(/[,\s\$]/g, "");
+      const num = (raw === "" || isNaN(Number(raw))) ? 0 : Number(raw);
+      setTeamMember(idx, "contribution", num);
+    });
+    td.appendChild(contribInp);
     tr.appendChild(td);
 
     // Ownership % — show derived/effective % when grouped or auto-deduct
@@ -5447,13 +5556,46 @@ function renderQuestions() {
 }
 
 // ----- VERSIONS -----
+// All possible stage values — same as the FIELDS deal_stage select.
+const DEAL_STAGES = ["Prospect Cold","Prospect Hot","$ Earmarked","Pending","Under Contract","Closed","Papered","Distributions","Refinance","Selling","Sold"];
+
 let versionsView = {
   sortKey: "saved_at",
   sortDir: "desc",
-  filters: {minPrice: null, maxPrice: null, minTeam: null, maxTeam: null, fromDate: null, toDate: null},
+  filters: {
+    minPrice: null, maxPrice: null,
+    minTeam: null,  maxTeam: null,
+    fromDate: null, toDate: null,
+    stages: new Set(),         // empty = no stage filter (all pass)
+    dateField: "created_at",   // "created_at" or "last_edited"  (toggle)
+  },
   selected: new Set(),
   cache: [],
 };
+
+// Quick date-range presets — return [fromISO, toISO] (YYYY-MM-DD).
+function dateRangePreset(label) {
+  const now = new Date();
+  const Y = now.getFullYear();
+  const M = now.getMonth();   // 0-indexed
+  const fmt = d => d.toISOString().slice(0, 10);
+  const startOfMonth = (y, m) => new Date(y, m, 1);
+  const endOfMonth   = (y, m) => new Date(y, m + 1, 0);
+  const startOfQuarter = (y, qIdx) => new Date(y, qIdx * 3, 1);
+  const endOfQuarter   = (y, qIdx) => new Date(y, qIdx * 3 + 3, 0);
+  const Q = Math.floor(M / 3);   // 0..3
+  switch (label) {
+    case "this-month":   return [fmt(startOfMonth(Y, M)),         fmt(endOfMonth(Y, M))];
+    case "last-month":   return [fmt(startOfMonth(Y, M - 1)),     fmt(endOfMonth(Y, M - 1))];
+    case "this-quarter": return [fmt(startOfQuarter(Y, Q)),       fmt(endOfQuarter(Y, Q))];
+    case "last-quarter":
+      if (Q === 0) return [fmt(startOfQuarter(Y - 1, 3)),         fmt(endOfQuarter(Y - 1, 3))];
+      return [fmt(startOfQuarter(Y, Q - 1)),                       fmt(endOfQuarter(Y, Q - 1))];
+    case "this-year":    return [Y     + "-01-01",                 Y     + "-12-31"];
+    case "last-year":    return [(Y-1) + "-01-01",                 (Y-1) + "-12-31"];
+  }
+  return [null, null];
+}
 
 async function renderVersions() {
   const body = document.getElementById("versionsBody");
@@ -5461,10 +5603,13 @@ async function renderVersions() {
   body.appendChild(el("p", {className: "kv-hint"},
     "All saved versions across all deals. Default sort: most-recently-edited first. Filters AND together. Select 2+ rows then click Compare."));
 
+  // ROW 1: numeric + date filters + Reset
   const filterBar = el("div", {className: "filter-bar"});
   filterBar.appendChild(el("label", null, "Price"));
   const minP = el("input", {type: "number", placeholder: "min $", style: "width: 90px;"});
   const maxP = el("input", {type: "number", placeholder: "max $", style: "width: 90px;"});
+  minP.value = versionsView.filters.minPrice ?? "";
+  maxP.value = versionsView.filters.maxPrice ?? "";
   minP.addEventListener("change", () => { versionsView.filters.minPrice = minP.value ? +minP.value : null; renderActiveTab(); });
   maxP.addEventListener("change", () => { versionsView.filters.maxPrice = maxP.value ? +maxP.value : null; renderActiveTab(); });
   filterBar.appendChild(minP); filterBar.appendChild(maxP);
@@ -5472,25 +5617,105 @@ async function renderVersions() {
   filterBar.appendChild(el("label", null, "# Team"));
   const minT = el("input", {type: "number", placeholder: "min", style: "width: 60px;"});
   const maxT = el("input", {type: "number", placeholder: "max", style: "width: 60px;"});
+  minT.value = versionsView.filters.minTeam ?? "";
+  maxT.value = versionsView.filters.maxTeam ?? "";
   minT.addEventListener("change", () => { versionsView.filters.minTeam = minT.value ? +minT.value : null; renderActiveTab(); });
   maxT.addEventListener("change", () => { versionsView.filters.maxTeam = maxT.value ? +maxT.value : null; renderActiveTab(); });
   filterBar.appendChild(minT); filterBar.appendChild(maxT);
 
-  filterBar.appendChild(el("label", null, "Saved between"));
+  // Date range — label dynamically reflects which date field is active
+  const isLastEdited = versionsView.filters.dateField === "last_edited";
+  filterBar.appendChild(el("label", {className: "filter-date-label"},
+    isLastEdited ? "Last edited between" : "Created between"));
   const fromD = el("input", {type: "date"});
   const toD   = el("input", {type: "date"});
+  fromD.value = versionsView.filters.fromDate || "";
+  toD.value   = versionsView.filters.toDate   || "";
   fromD.addEventListener("change", () => { versionsView.filters.fromDate = fromD.value || null; renderActiveTab(); });
   toD.addEventListener("change",   () => { versionsView.filters.toDate   = toD.value || null;   renderActiveTab(); });
   filterBar.appendChild(fromD); filterBar.appendChild(toD);
 
+  // Last Edited toggle — switches every date filter (range + presets) to
+  // operate on last_edited_date instead of created_at
+  const dateFieldLbl = el("label", {className: "comms-check", title: "Toggle: when ON, all date filters apply to Last Edited Date instead of Created"});
+  const dateFieldCb  = el("input", {type: "checkbox"});
+  dateFieldCb.checked = isLastEdited;
+  dateFieldCb.addEventListener("change", () => {
+    versionsView.filters.dateField = dateFieldCb.checked ? "last_edited" : "created_at";
+    renderActiveTab();
+  });
+  dateFieldLbl.appendChild(dateFieldCb);
+  dateFieldLbl.appendChild(document.createTextNode(" Last Edited Date"));
+  filterBar.appendChild(dateFieldLbl);
+
   const reset = el("button", {className: "btn"}, "Reset");
   reset.addEventListener("click", () => {
-    versionsView.filters = {minPrice: null, maxPrice: null, minTeam: null, maxTeam: null, fromDate: null, toDate: null};
-    minP.value = ""; maxP.value = ""; minT.value = ""; maxT.value = ""; fromD.value = ""; toD.value = "";
+    versionsView.filters = {
+      minPrice: null, maxPrice: null, minTeam: null, maxTeam: null,
+      fromDate: null, toDate: null,
+      stages: new Set(),
+      dateField: "created_at",
+    };
     renderActiveTab();
   });
   filterBar.appendChild(reset);
+
+  // ROW 2: Stage checkboxes + Clear/Select All
+  const stageRow = el("div", {className: "filter-bar filter-stage-row"});
+  stageRow.appendChild(el("strong", {className: "filter-rowlabel"}, "Stage:"));
+  const stageBoxes = [];
+  DEAL_STAGES.forEach(s => {
+    const lbl = el("label", {className: "comms-check"});
+    const cb = el("input", {type: "checkbox"});
+    cb.checked = versionsView.filters.stages.has(s);
+    cb.addEventListener("change", () => {
+      if (cb.checked) versionsView.filters.stages.add(s);
+      else versionsView.filters.stages.delete(s);
+      renderActiveTab();
+    });
+    stageBoxes.push(cb);
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(" " + s));
+    stageRow.appendChild(lbl);
+  });
+  const stageAll = el("button", {className: "btn btn-sm"}, "Select All");
+  stageAll.addEventListener("click", () => {
+    DEAL_STAGES.forEach(s => versionsView.filters.stages.add(s));
+    renderActiveTab();
+  });
+  const stageNone = el("button", {className: "btn btn-sm"}, "Clear");
+  stageNone.addEventListener("click", () => {
+    versionsView.filters.stages.clear();
+    renderActiveTab();
+  });
+  stageRow.appendChild(stageAll);
+  stageRow.appendChild(stageNone);
+
+  // ROW 3: Date quick presets — fill from/to with the chosen range
+  const presetRow = el("div", {className: "filter-bar filter-preset-row"});
+  presetRow.appendChild(el("strong", {className: "filter-rowlabel"},
+    isLastEdited ? "Edited:" : "Created:"));
+  [
+    ["This month",   "this-month"],
+    ["Last month",   "last-month"],
+    ["This quarter", "this-quarter"],
+    ["Last quarter", "last-quarter"],
+    ["This year",    "this-year"],
+    ["Last year",    "last-year"],
+  ].forEach(([label, key]) => {
+    const b = el("button", {className: "btn btn-sm"}, label);
+    b.addEventListener("click", () => {
+      const [from, to] = dateRangePreset(key);
+      versionsView.filters.fromDate = from;
+      versionsView.filters.toDate   = to;
+      renderActiveTab();
+    });
+    presetRow.appendChild(b);
+  });
+
   body.appendChild(filterBar);
+  body.appendChild(stageRow);
+  body.appendChild(presetRow);
 
   // Compare bar
   const compareBar = el("div", {className: "compare-bar"});
@@ -5575,14 +5800,62 @@ async function renderVersions() {
     tr.appendChild(el("td", null, v.version_id.slice(0, 12)));
     tr.appendChild(el("td", null, (v.saved_at || "").slice(0, 16).replace("T", " ")));
     tr.appendChild(el("td", null, (v.state && v.state.created_at || "").slice(0, 10)));
-    tr.appendChild(el("td", null, (v.state && v.state.deal_stage) || "—"));
+    // Inline stage pulldown — change stage without opening the deal. Persists
+    // back to IndexedDB via dbPut("versions", v) and re-renders.
+    const stageTd = el("td", {className: "stage-cell"});
+    const stageSel = el("select", {className: "stage-select"});
+    const cur = (v.state && v.state.deal_stage) || "";
+    [""].concat(DEAL_STAGES).forEach(s => {
+      const opt = el("option", {value: s}, s || "—");
+      if (s === cur) opt.selected = true;
+      stageSel.appendChild(opt);
+    });
+    stageSel.addEventListener("click", e => e.stopPropagation());
+    stageSel.addEventListener("change", async () => {
+      if (!v.state) v.state = {};
+      const before = v.state.deal_stage || null;
+      v.state.deal_stage = stageSel.value || null;
+      try { await dbPut("versions", v); } catch (e) { console.warn(e); }
+      logEdit({source: "browser-stage-edit", field_key: "deal_stage", before: before, after: v.state.deal_stage,
+               description: "Browser inline stage edit on " + v.version_id.slice(0,8)});
+      toast("Stage → " + (v.state.deal_stage || "—"));
+      renderActiveTab();
+    });
+    stageTd.appendChild(stageSel);
+    tr.appendChild(stageTd);
     tr.appendChild(el("td", {className: "num"}, fmt$(v.state && v.state.purchase_price || 0)));
     tr.appendChild(el("td", {className: "num"}, String((v.state && v.state.team_members || []).filter(m => m.name && m.name.trim()).length)));
     tr.appendChild(el("td", {className: "kv-hint"},
       (v.manual_changes || []).slice(0, 4).map(ch => ch.field_key).join(", ") + ((v.manual_changes || []).length > 4 ? " …" : "")));
     const loadBtn = el("button", {className: "btn"}, "Load");
     loadBtn.addEventListener("click", () => loadVersion(v.version_id));
-    tr.appendChild(el("td", null, loadBtn));
+    // Copy-summary icon — fades in on row hover. Click → clipboard + toast.
+    const copyBtn = el("button", {className: "btn btn-sm row-copy-btn",
+                                  title: "Copy a one-line summary of this deal"}, "📋");
+    copyBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      copyToClipboard(buildVersionSummary(v, "basic"), "Deal summary");
+    });
+    const cellLoad = el("td", {className: "row-actions"});
+    cellLoad.appendChild(copyBtn);
+    cellLoad.appendChild(loadBtn);
+    tr.appendChild(cellLoad);
+    // Right-click / long-press → opens a popup with the full summary
+    let _pressTimer = null;
+    const showRowSummary = (ev) => {
+      ev.preventDefault();
+      showVersionSummaryPopup(v, ev.clientX, ev.clientY);
+    };
+    tr.addEventListener("contextmenu", showRowSummary);
+    tr.addEventListener("touchstart", (ev) => {
+      if (_pressTimer) clearTimeout(_pressTimer);
+      _pressTimer = setTimeout(() => {
+        const t = ev.touches && ev.touches[0];
+        showVersionSummaryPopup(v, t ? t.clientX : 0, t ? t.clientY : 0);
+      }, 600);
+    }, {passive: true});
+    tr.addEventListener("touchend", () => { if (_pressTimer) clearTimeout(_pressTimer); });
+    tr.addEventListener("touchmove", () => { if (_pressTimer) clearTimeout(_pressTimer); });
     tbody.appendChild(tr);
   });
   tbl.appendChild(tbody);
@@ -5601,8 +5874,15 @@ function filterVersion(v) {
   if (f.maxPrice !== null && s.purchase_price > f.maxPrice) return false;
   if (f.minTeam !== null && teamCount < f.minTeam) return false;
   if (f.maxTeam !== null && teamCount > f.maxTeam) return false;
-  if (f.fromDate && (v.saved_at || "") < f.fromDate) return false;
-  if (f.toDate && (v.saved_at || "") > f.toDate + "T23:59:59") return false;
+  // Date range — uses created_at by default; toggle flips to last edited.
+  // last_edited preferred fallback chain: state.last_edited_date → v.saved_at.
+  const dateVal = (f.dateField === "last_edited")
+    ? ((s.last_edited_date || v.saved_at || "").slice(0, 10))
+    : ((s.created_at || "").slice(0, 10));
+  if (f.fromDate && dateVal < f.fromDate) return false;
+  if (f.toDate   && dateVal > f.toDate)   return false;
+  // Stage filter — empty Set means "all pass"
+  if (f.stages && f.stages.size > 0 && !f.stages.has(s.deal_stage || "")) return false;
   return true;
 }
 
@@ -5629,6 +5909,83 @@ function sortVersionRow(a, b) {
   return 0;
 }
 
+// Build a paste-ready summary string for one saved version.
+// mode = "basic" (one-line) or "full" (multi-line with all key fields).
+function buildVersionSummary(v, mode) {
+  const s = v.state || {};
+  const c = (() => { try { return compute(s); } catch (e) { return null; } })();
+  const code = s.deal_code ? " " + s.deal_code.toUpperCase() : "";
+  const head = (s.deal_name || v.deal_short_name || "Untitled") + code;
+  if (mode === "basic") {
+    const parts = [head];
+    if (s.deal_stage)      parts.push("[" + s.deal_stage + "]");
+    if (s.purchase_price)  parts.push(fmt$(s.purchase_price));
+    if (c && c.total_profit) parts.push("→ " + fmt$(c.total_profit) + " profit");
+    if (s.hold_period_years) parts.push(s.hold_period_years + "yr");
+    return parts.join("  ");
+  }
+  // Full multi-line
+  const lines = [head, "Stage: " + (s.deal_stage || "—")];
+  lines.push("Address: " + (s.property_address_full || "—"));
+  lines.push("Purchase: " + fmt$(s.purchase_price || 0));
+  lines.push("Earnest money: " + fmt$(s.earnest_money || 0));
+  lines.push("Hold: " + (s.hold_period_years || "—") + " yrs");
+  lines.push("Loan: " + fmtPct(s.loan_to_value || 0) + " LTV @ " + fmtPct(s.loan_interest_rate || 0, 3) + " / " + (s.loan_amortization_years || "—") + "yr");
+  lines.push("Year-1 monthly rent: " + fmt$(s.rent_year_1_monthly || 0));
+  lines.push("Exit cap: " + fmtPct(s.exit_cap_rate || 0));
+  if (c) {
+    lines.push("");
+    lines.push("Computed:");
+    lines.push("  Equity required: " + fmt$(c.equity_required));
+    lines.push("  Year-1 NOI: " + fmt$(c.years[0] && c.years[0].noi));
+    lines.push("  Year-N (" + (s.hold_period_years || "?") + ") NOI: " + fmt$(c.exit_year_noi));
+    lines.push("  Sale price (Year-N): " + fmt$(c.sale_price));
+    lines.push("  Total profit: " + fmt$(c.total_profit));
+  }
+  lines.push("");
+  lines.push("Created: " + (s.created_at || "").slice(0,10));
+  lines.push("Last edited: " + (s.last_edited_date || v.saved_at || "").slice(0,10));
+  return lines.join("\n");
+}
+
+// Floating popup near (x,y) showing the full summary + buttons.
+function showVersionSummaryPopup(v, x, y) {
+  const existing = document.querySelector(".version-summary-popup");
+  if (existing) existing.remove();
+  const pop = document.createElement("div");
+  pop.className = "version-summary-popup";
+  const text = buildVersionSummary(v, "full");
+  const pre = document.createElement("pre");
+  pre.textContent = text;
+  pop.appendChild(pre);
+  const btnRow = document.createElement("div");
+  btnRow.className = "version-summary-actions";
+  const copyB = el("button", {className: "btn btn-sm btn-primary"}, "Copy");
+  copyB.addEventListener("click", () => copyToClipboard(text, "Deal summary"));
+  const closeB = el("button", {className: "btn btn-sm"}, "Close");
+  closeB.addEventListener("click", () => pop.remove());
+  btnRow.appendChild(copyB);
+  btnRow.appendChild(closeB);
+  pop.appendChild(btnRow);
+  document.body.appendChild(pop);
+  const r = pop.getBoundingClientRect();
+  let left = Math.min(x + 6, window.innerWidth  - r.width  - 8);
+  let top  = Math.min(y + 6, window.innerHeight - r.height - 8);
+  if (left < 8) left = 8;
+  if (top  < 8) top  = 8;
+  pop.style.left = left + "px";
+  pop.style.top  = top  + "px";
+  setTimeout(() => {
+    const dismiss = (ev) => {
+      if (!pop.contains(ev.target)) {
+        pop.remove();
+        document.removeEventListener("mousedown", dismiss, true);
+      }
+    };
+    document.addEventListener("mousedown", dismiss, true);
+  }, 0);
+}
+
 // ----- COMPARE -----
 const COMPARE_DEFAULTS = ["deal_name","saved_at","purchase_price","rent_year_1_monthly","hold_period_years","exit_cap_rate","loan_interest_rate","total_profit","sale_price","exit_year_noi"];
 
@@ -5640,11 +5997,40 @@ async function openCompareModal() {
   const body = document.getElementById("compareBody");
   body.innerHTML = "";
 
-  // Settings cog
-  const cogRow = el("div", {style: "display: flex; gap: 10px; align-items: center; margin-bottom: 10px;"});
+  // Toolbar — settings cog + Copy + Create file with basic/full toggle
+  const cogRow = el("div", {className: "compare-toolbar"});
   const cog = el("button", {className: "btn"}, "⚙ Compare Columns");
   cog.addEventListener("click", () => toggleCompareSettings(sel));
   cogRow.appendChild(cog);
+  // Basic / Full toggle
+  const fullLbl = el("label", {className: "comms-check"});
+  const fullCb  = el("input", {type: "checkbox"});
+  fullLbl.appendChild(fullCb);
+  fullLbl.appendChild(document.createTextNode(" Full compare (all fields, not just defaults)"));
+  cogRow.appendChild(fullLbl);
+  // Copy
+  const copyCmpBtn = el("button", {className: "btn"}, "📋 Copy");
+  copyCmpBtn.addEventListener("click", () => {
+    const txt = buildCompareText(sel, fullCb.checked);
+    copyToClipboard(txt, "Comparison");
+  });
+  cogRow.appendChild(copyCmpBtn);
+  // Create file
+  const fileBtn = el("button", {className: "btn"}, "💾 Create File");
+  fileBtn.addEventListener("click", () => {
+    const txt = buildCompareText(sel, fullCb.checked);
+    const blob = new Blob([txt], {type: "text/plain"});
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "compare_" + sel.map(v => (v.state && v.state.deal_code) || v.version_id.slice(0,4)).join("_") +
+                 "_" + (fullCb.checked ? "full" : "basic") + ".txt";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
+    toast("Comparison file downloaded");
+  });
+  cogRow.appendChild(fileBtn);
   body.appendChild(cogRow);
 
   const cmpKeys = JSON.parse(localStorage.getItem("moab_compare_default") || "null") || COMPARE_DEFAULTS;
@@ -5698,6 +6084,44 @@ async function openCompareModal() {
   body.appendChild(tbl);
 
   document.getElementById("compareBackdrop").classList.remove("hidden");
+}
+
+// Plain-text comparison string for Copy / Create File. Tab-separated so
+// it lands as a real table when pasted into Gmail / Google Doc / Slack.
+function buildCompareText(sel, fullMode) {
+  const allFields = [
+    "deal_name","deal_stage","saved_at","created_at","purchase_price","earnest_money","reserve",
+    "loan_to_value","loan_interest_rate","loan_amortization_years",
+    "rent_year_1_monthly","rent_annual_escalator","mgmt_fee_pct_of_rent","is_pure_nnn",
+    "hold_period_years","exit_cap_rate",
+    "loan_amount","monthly_payment","exit_year_noi","sale_price","total_profit",
+  ];
+  const useDefaults = JSON.parse(localStorage.getItem("moab_compare_default") || "null") || COMPARE_DEFAULTS;
+  const cmpKeys = fullMode ? allFields : useDefaults;
+  const headers = ["Field"].concat(sel.map(v => {
+    const code = (v.state && v.state.deal_code) ? " " + v.state.deal_code : "";
+    return ((v.state && v.state.deal_name) || v.deal_short_name || "Untitled") + code;
+  }));
+  const lines = [headers.join("\t")];
+  cmpKeys.forEach(k => {
+    const cells = [k];
+    sel.forEach(v => {
+      const s = v.state || {};
+      let c = null; try { c = compute(s); } catch (e) {}
+      let val;
+      if (k in s) val = s[k];
+      else if (c && k === "loan_amount")    val = c.loan_amount;
+      else if (c && k === "monthly_payment")val = c.monthly_payment;
+      else if (c && k === "exit_year_noi")  val = c.exit_year_noi;
+      else if (c && k === "total_profit")   val = c.total_profit;
+      else if (c && k === "sale_price")     val = c.sale_price;
+      else if (k === "saved_at")            val = (v.saved_at || "").slice(0, 16);
+      else val = "—";
+      cells.push(formatCmpVal(k, val));
+    });
+    lines.push(cells.join("\t"));
+  });
+  return lines.join("\n");
 }
 
 function formatCmpVal(k, v) {
