@@ -390,7 +390,9 @@
     width: 100%;
     max-width: 100%;
   }
-  /* DESKTOP: two pairs side-by-side, centered as a card */
+  /* DESKTOP: two pairs side-by-side, centered as a card.
+     MOBILE (<=700px): collapses to a single stacked column — overrides
+     1fr 1fr below the breakpoint so groups don't get crushed in half. */
   section[data-tab="inputs"] .inputs-2col {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -398,6 +400,12 @@
     max-width: var(--app-max-width);
     margin: 0 auto;
     align-items: start;
+  }
+  @media (max-width: 700px) {
+    section[data-tab="inputs"] .inputs-2col {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
   }
   section[data-tab="inputs"] .inputs-col { min-width: 0; }
   section[data-tab="inputs"] .inputs-col .kv:last-child { margin-bottom: 0; }
@@ -1363,7 +1371,7 @@
     .topbar #newDealBtn { font-size: 0; padding: 8px 10px; }
     .topbar #newDealBtn::before { content: "+ Deal"; font-size: 11px; font-weight: 600; }
     .topbar #saveVersionBtn { font-size: 0; padding: 8px 12px; }
-    .topbar #saveVersionBtn::before { content: "+ Variant"; font-size: 11px; font-weight: 700; }
+    .topbar #saveVersionBtn::before { content: "+ Alt"; font-size: 11px; font-weight: 700; }
     .topbar #dealsBtn { font-size: 11px; padding: 8px 10px; font-weight: 600; }
     .topbar .feedback-icon, .topbar .help-icon {
       width: 30px; height: 30px;
@@ -1545,7 +1553,7 @@
         <button id="redoBtn" disabled>↷</button>
         <button id="dealsBtn" data-tip="Browse all saved deals & versions">DEALS</button>
         <button id="newDealBtn" data-tip="Create a new deal from a template">+ DEAL</button>
-        <button id="saveVersionBtn" class="primary" data-tip="Fork: save current state, bump deal name (v2/v3…) and switch to the new variant">+ New Variant</button>
+        <button id="saveVersionBtn" class="primary" data-tip="Fork: save current deal as an Alt — new deal_id, deal name bumps to v2/v3…, switches to the alt">+ New Alt</button>
       </div>
       <div class="actions actions-right">
         <button id="settingsBtn" data-tip="Settings, defaults, templates">⚙</button>
@@ -1808,7 +1816,9 @@ const FIELDS = {
   property_business_name:      {label: "Property business name",    group: "DEAL META",    type: "string",  hint: "auto-pull from Maps (Phase 5)"},
   property_business_url:       {label: "Property business URL",     group: "DEAL META",    type: "string",  hint: "auto-pull from Maps (Phase 5)"},
   property_acres:              {label: "Property acres",            group: "DEAL META",    type: "number",  fmt: "decimal", min: 0, step: 0.01},
-  closing_date:                {label: "Closing date ($FP)",        group: "DEAL META",    type: "string",  hint: "YYYY-MM-DD; for Versions filter"},
+  deal_stage:                  {label: "Deal stage",                 group: "DEAL META",    type: "select",
+                                options: ["Prospect Cold","Prospect Hot","$ Earmarked","Pending","Under Contract","Closed","Papered","Distributions","Refinance","Selling","Sold"],
+                                hint: "Future-proof: stage-based workflow automation will key off this field"},
   contact_name:                {label: "Contact name",              group: "DEAL META",    type: "string",  hint: ""},
   contact_phone:               {label: "Contact phone",             group: "DEAL META",    type: "string",  hint: ""},
   contact_email:               {label: "Contact email",             group: "DEAL META",    type: "string",  hint: ""},
@@ -1860,7 +1870,7 @@ const DEFAULT_TEMPLATE = {
     property_business_name:   "",
     property_business_url:    "",
     property_acres:           0,
-    closing_date:             "",
+    deal_stage:               "Prospect Cold",
     contact_name:             "",
     contact_phone:            "",
     contact_email:            "",
@@ -1922,7 +1932,7 @@ const MOAB_EARLY_V1_DATA = {
     property_business_name:   "",
     property_business_url:    "",
     property_acres:           0.99,
-    closing_date:             "",
+    deal_stage:               "Prospect Cold",
     contact_name:             "John Able",
     contact_phone:            "",
     contact_email:            "",
@@ -2227,6 +2237,7 @@ function setField(key, value, options) {
   }
   state[key] = value;
   state.last_edited_date = todayISO();
+  logEdit({source: "setField", field_key: key, before: before, after: value});
   recompute();
   autosave();
   renderActiveTab();
@@ -2292,6 +2303,12 @@ function setTeamMember(idx, key, value, options) {
   }
   m[key] = value;
   if (coupledKey) m[coupledKey] = coupledAfter;
+  logEdit({
+    source: "setTeamMember",
+    field_key: "team[" + idx + "]." + key,
+    before: before, after: value,
+    coupled: coupledKey ? {key: coupledKey, before: coupledBefore, after: coupledAfter} : null,
+  });
 
   // NEW group model: editing a grouped member's ownership_pct is a no-op
   // (the group total drives everyone in the group). The change still
@@ -2403,6 +2420,7 @@ function setGroupTotal(groupId, value) {
   redoStack = [];
   state.group_totals[groupId] = value;
   state.last_edited_date = todayISO();
+  logEdit({source: "setGroupTotal", field_key: "group_totals[" + groupId + "]", before: before, after: value});
   recompute();
   autosave();
   renderActiveTab();
@@ -2532,7 +2550,7 @@ function updateUndoRedoUI() {
 // ============================================================
 
 const DB_NAME = "moab_early_app";
-const DB_VERSION = 1;
+const DB_VERSION = 2;       /* bumped 260427-2335 — new "edit_log" store */
 let db = null;
 
 function openDB() {
@@ -2543,10 +2561,42 @@ function openDB() {
       if (!_db.objectStoreNames.contains("autosave"))   _db.createObjectStore("autosave", {keyPath: "id"});
       if (!_db.objectStoreNames.contains("templates"))  _db.createObjectStore("templates", {keyPath: "template_id"});
       if (!_db.objectStoreNames.contains("versions"))   _db.createObjectStore("versions", {keyPath: "version_id"});
+      // Audit log — every observable mutation gets one row. Auto-increment
+      // primary key so writes never need to coordinate. Indexed by deal_id
+      // and timestamp for fast per-deal scrubbing.
+      if (!_db.objectStoreNames.contains("edit_log")) {
+        const log = _db.createObjectStore("edit_log", {keyPath: "log_id", autoIncrement: true});
+        log.createIndex("by_deal", "deal_id", {unique: false});
+        log.createIndex("by_ts",   "timestamp", {unique: false});
+      }
     };
     r.onsuccess = (e) => { db = e.target.result; resolve(db); };
     r.onerror = (e) => reject(e);
   });
+}
+
+// Audit-log writer. Called from every state-mutation helper. Never throws —
+// logging failures must NEVER block the user's edit, so we swallow errors
+// (autosave + IndexedDB quota issues are surfaced elsewhere). Records:
+//   timestamp  — ISO local
+//   deal_id    — current deal
+//   deal_code  — current 3-char code (helps cross-reference voice notes)
+//   source     — function name doing the mutation
+//   field_key  — top-level field, "team[idx].field", "group_totals[gid]", etc.
+//   before     — pre-mutation value
+//   after      — post-mutation value
+//   description (optional) — human-readable summary
+function logEdit(entry) {
+  if (!db) return;     // pre-init or no IndexedDB; skip silently
+  try {
+    const enriched = Object.assign({
+      timestamp: new Date().toISOString(),
+      deal_id:   state && state.deal_id || null,
+      deal_code: state && state.deal_code || null,
+    }, entry);
+    const t = db.transaction("edit_log", "readwrite");
+    t.objectStore("edit_log").add(enriched);
+  } catch (e) { /* non-fatal */ }
 }
 
 function tx(store, mode) {
@@ -2798,24 +2848,20 @@ async function saveVersion() {
   if (activeTab === "versions") renderActiveTab();
 }
 
-// ----- DEAL CODE (4-char voice-friendly ID) -----
-// Format: <letter><letter><digit><digit>, e.g. "aa11".
-// Sequence: aa11..aa99 (89 codes) → ab11..ab99 → ... → az99 → ba11 → ... → zz99.
-// Counter persists in localStorage. Mapping (deal_id → code) also persists so
-// reloading old versions keeps the same code. Numbers start at 11 (not 00/01)
-// so voice-to-text always picks up two clearly-spoken digits.
+// ----- DEAL CODE (3-char voice-friendly ID) -----
+// Format: <letter><digit><digit>, e.g. "a11". Was 4-char (aa11) before
+// 260427-2330 — user dropped a letter for shorter voice/typing payload.
+// Sequence: a11..a99 (89 codes) → b11..b99 → ... → z99. Total 2,314 codes.
+// Numbers start at 11 (not 00/01) so voice-to-text never collapses a leading
+// zero. Counter + (deal_id → code) map persist in localStorage.
 const DEAL_CODE_NUM_RANGE = 89;   // 11..99 inclusive
 function indexToDealCode(idx) {
   if (idx < 0) idx = 0;
-  const total = 26 * 26 * DEAL_CODE_NUM_RANGE;
+  const total = 26 * DEAL_CODE_NUM_RANGE;
   idx = idx % total;
-  const numIdx  = idx % DEAL_CODE_NUM_RANGE;       // 0..88
-  const pairIdx = Math.floor(idx / DEAL_CODE_NUM_RANGE);  // 0..675
-  const l2 = pairIdx % 26;
-  const l1 = Math.floor(pairIdx / 26) % 26;
-  return String.fromCharCode(97 + l1) +
-         String.fromCharCode(97 + l2) +
-         String(numIdx + 11);
+  const numIdx = idx % DEAL_CODE_NUM_RANGE;       // 0..88
+  const l      = Math.floor(idx / DEAL_CODE_NUM_RANGE) % 26;
+  return String.fromCharCode(97 + l) + String(numIdx + 11);
 }
 function _getDealCodeMap() {
   try { return JSON.parse(localStorage.getItem("moab_deal_code_map") || "{}"); }
@@ -2837,8 +2883,19 @@ function _nextDealCodeIdx() {
 function ensureDealCode(s) {
   const t = s || state;
   if (!t) return null;
+  // Migrate 4-char legacy codes ("aa11") → 3-char ("a11") by dropping the
+  // FIRST letter. The 4-char sequence was 0..60163 with l1*89*26 + l2*89 +
+  // num; trimming l1 keeps the remaining (l2, num) pair valid in the new
+  // 3-char space (l2 ∈ 0..25, num ∈ 11..99 → idx 0..2313 ✓).
   if (t.deal_code && /^[a-z]{2}\d{2}$/.test(t.deal_code)) {
-    // Make sure the map has it too (in case of cross-device restore)
+    t.deal_code = t.deal_code.slice(1);
+    if (t.deal_id) {
+      const m = _getDealCodeMap();
+      m[t.deal_id] = t.deal_code;
+      _setDealCodeMap(m);
+    }
+  }
+  if (t.deal_code && /^[a-z]\d{2}$/.test(t.deal_code)) {
     if (t.deal_id) {
       const map = _getDealCodeMap();
       if (map[t.deal_id] !== t.deal_code) {
@@ -2938,6 +2995,13 @@ async function saveAsNewVariant() {
   // Persist autosave so a refresh lands on the new variant, not the old.
   await dbPut("autosave", {id: "current_draft", state: state, saved_at: todayISO()});
 
+  logEdit({
+    source: "saveAsNewVariant",
+    field_key: "deal_id",
+    before: oldVersion.deal_id, after: state.deal_id,
+    description: "Forked '" + oldName + "' (" + oldVersion.deal_id.slice(0,8) + ") → '" + newName + "' (" + state.deal_id.slice(0,8) + ")",
+  });
+
   // Reset undo stack — the old edit history belonged to the prior deal_id.
   // Keeping it would let undo cross deal boundaries and corrupt state.
   undoStack = [];
@@ -3004,6 +3068,12 @@ async function loadVersion(versionId) {
   undoStack = [];
   redoStack = [];
   await dbPut("autosave", {id: "current_draft", state: state, saved_at: todayISO()});
+  logEdit({
+    source: "loadVersion",
+    field_key: "version_id",
+    before: null, after: v.version_id,
+    description: "Loaded version " + v.version_id.slice(0,8) + " (" + (v.state && v.state.deal_name || "?") + ")",
+  });
   renderActiveTab();
   refreshDealName();
   updateUndoRedoUI();
@@ -4475,7 +4545,7 @@ async function renderVersions() {
     {key: "version_short",    label: "Version",    sort: false},
     {key: "saved_at",         label: "Last edited",sort: true},
     {key: "created_at",       label: "Created",    sort: true},
-    {key: "closing_date",     label: "Closing",    sort: true},
+    {key: "deal_stage",       label: "Stage",      sort: true},
     {key: "purchase_price",   label: "Price",      sort: true},
     {key: "team_count",       label: "# Team",     sort: true},
     {key: "manual_changes",   label: "Manual changes (vs parent)", sort: false},
@@ -4535,7 +4605,7 @@ async function renderVersions() {
     tr.appendChild(el("td", null, v.version_id.slice(0, 12)));
     tr.appendChild(el("td", null, (v.saved_at || "").slice(0, 16).replace("T", " ")));
     tr.appendChild(el("td", null, (v.state && v.state.created_at || "").slice(0, 10)));
-    tr.appendChild(el("td", null, (v.state && v.state.closing_date) || "—"));
+    tr.appendChild(el("td", null, (v.state && v.state.deal_stage) || "—"));
     tr.appendChild(el("td", {className: "num"}, fmt$(v.state && v.state.purchase_price || 0)));
     tr.appendChild(el("td", {className: "num"}, String((v.state && v.state.team_members || []).filter(m => m.name && m.name.trim()).length)));
     tr.appendChild(el("td", {className: "kv-hint"},
@@ -4575,7 +4645,7 @@ function sortVersionRow(a, b) {
   }
   else if (k === "saved_at")   { av = a.saved_at; bv = b.saved_at; }
   else if (k === "created_at") { av = a.state && a.state.created_at; bv = b.state && b.state.created_at; }
-  else if (k === "closing_date") { av = a.state && a.state.closing_date; bv = b.state && b.state.closing_date; }
+  else if (k === "deal_stage")   { av = a.state && a.state.deal_stage;   bv = b.state && b.state.deal_stage;   }
   else if (k === "purchase_price") { av = a.state && a.state.purchase_price; bv = b.state && b.state.purchase_price; }
   else if (k === "team_count") {
     av = (a.state && a.state.team_members || []).filter(m => m.name && m.name.trim()).length;
@@ -4675,7 +4745,7 @@ function toggleCompareSettings(sel) {
   panel = el("div", {className: "cmp-settings", style: "border: 1px solid var(--gray-border); padding: 10px; margin-bottom: 12px; background: #FAFAFA;"});
   panel.appendChild(el("p", {className: "kv-hint"}, "Toggle which fields appear in the comparison. Click 'Set as Default' to remember."));
   const candidates = [
-    "deal_name","saved_at","created_at","closing_date","purchase_price","earnest_money","reserve","loan_to_value","loan_interest_rate","loan_amortization_years",
+    "deal_name","deal_stage","saved_at","created_at","purchase_price","earnest_money","reserve","loan_to_value","loan_interest_rate","loan_amortization_years",
     "rent_year_1_monthly","rent_annual_escalator","mgmt_fee_pct_of_rent","is_pure_nnn","hold_period_years","exit_cap_rate",
     "loan_amount","monthly_payment","exit_year_noi","sale_price","total_profit"
   ];
