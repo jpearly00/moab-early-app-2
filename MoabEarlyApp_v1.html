@@ -863,7 +863,9 @@
   }
   /* Property-address input with inline Maps + Zillow launchers on the right.
      Buttons live INSIDE the input visually — input padding-right reserves
-     room for them, then they're absolute-positioned over that gutter. */
+     room for them, then they're absolute-positioned over that gutter.
+     Both buttons have FIXED width so the address text never collides with
+     them and "Maps" never gets clipped. */
   .input-with-actions {
     position: relative;
     display: block;
@@ -871,7 +873,8 @@
   }
   .input-with-actions > input {
     width: 100%;
-    padding-right: 76px;   /* room for two ~32px buttons + gap */
+    /* 50 (Maps) + 50 (Zillow) + 4 (gap) + 4 (right pad) + 4 (text gap) */
+    padding-right: 116px;
     box-sizing: border-box;
   }
   .input-with-actions .field-action {
@@ -879,8 +882,8 @@
     top: 50%;
     transform: translateY(-50%);
     height: 26px;
-    min-width: 32px;
-    padding: 0 6px;
+    width: 50px;            /* fixed — no clipping regardless of text */
+    padding: 0;
     background: #FFF;
     border: 1px solid var(--gray-border);
     border-radius: 4px;
@@ -893,14 +896,16 @@
     align-items: center;
     justify-content: center;
     line-height: 1;
+    white-space: nowrap;
   }
   .input-with-actions .field-action:hover { background: var(--blue-hover); }
   .input-with-actions .field-action.disabled {
     opacity: 0.35;
     pointer-events: none;
   }
-  .input-with-actions .field-action.maps   { right: 38px; }
+  /* Zillow on the far right; Maps to its left with a 4px gap */
   .input-with-actions .field-action.zillow { right: 4px; }
+  .input-with-actions .field-action.maps   { right: 58px; }
   .autocomplete-dropdown .item {
     padding: 7px 10px;
     border-bottom: 1px solid var(--gray-border);
