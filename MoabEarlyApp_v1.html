@@ -242,29 +242,37 @@
   }
   /* NOI — Year column sticky-left so user can scroll metrics right while
      keeping the year visible. table-layout:fixed forces explicit widths
-     to actually hold (auto-layout ignores them under min-width pressure). */
-  .noi-table { table-layout: fixed; min-width: 600px; }
-  .noi-table th:first-child,
-  .noi-table td:first-child {
+     to actually hold (auto-layout ignores them under min-width pressure).
+     Selectors use table.grid.noi-table to outrank mobile rules that target
+     `table.grid td.label { min-width: 130px }` — without that extra .grid
+     hop, the Yr column balloons to 130px on mobile. */
+  table.grid.noi-table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 600px;
+  }
+  table.grid.noi-table th:first-child,
+  table.grid.noi-table td:first-child,
+  table.grid.noi-table td.label:first-child {
     position: sticky;
     left: 0;
     z-index: 2;
     background: var(--gray-zebra);
-    min-width: 28px;
-    max-width: 28px;
-    width: 28px;
-    padding: 3px 2px;
+    min-width: 24px !important;
+    max-width: 24px !important;
+    width: 24px !important;       /* 3-char target ("10*" in 11px mono) */
+    padding: 3px 1px;
     font-size: 11px;
     text-align: center;
     font-weight: 600;
   }
-  .noi-table th:not(:first-child),
-  .noi-table td:not(:first-child) {
+  table.grid.noi-table th:not(:first-child),
+  table.grid.noi-table td:not(:first-child) {
     /* Compact metric columns — content fits with ellipsis-free padding */
     padding: 3px 4px;
     font-size: 11px;
   }
-  .noi-table thead th:first-child {
+  table.grid.noi-table thead th:first-child {
     background: var(--navy);
     color: #FFF;
   }
@@ -526,18 +534,24 @@
   }
 
   /* ---------- INVESTOR TEAM ---------- */
-  /* table-layout:fixed — without this, auto-layout ignores cell max-widths
-     once .team-table min-width (640px on mobile) forces a stretch, and the
-     # column balloons. Fixed layout honors the explicit per-column widths
-     below. Total below sums to ~480px which fits any phone. */
-  .team-table { table-layout: fixed; }
+  /* table-layout:fixed REQUIRES the table itself to have an explicit width
+     (`auto` falls back to auto-layout, which uses the <select>/<input>
+     intrinsic widths and ignores per-cell max-width — Group column then
+     blows up to ~180px because that's the <select>'s default render width).
+     `width: 100%` is enough to activate fixed layout. !important on every
+     column width because mobile @media rules and `td.input input` rules
+     keep raising specificity in ways that beat plain class selectors. */
+  table.grid.team-table {
+    table-layout: fixed;
+    width: 100%;
+  }
   .team-table th, .team-table td { vertical-align: middle; }
-  /* # column — minimum width (~2 char), forced */
+  /* # column — 2 char */
   .team-table th:first-child,
   .team-table td:first-child {
-    width: 20px;
-    min-width: 20px;
-    max-width: 20px;
+    width: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
     padding: 4px 0;
     color: var(--gray-label);
     font-size: 10px;
@@ -546,29 +560,30 @@
   /* Contribution — half-width */
   .team-table th.col-contribution,
   .team-table td.col-contribution {
-    width: 90px;
-    min-width: 90px;
-    max-width: 90px;
+    width: 90px !important;
+    min-width: 90px !important;
+    max-width: 90px !important;
   }
   /* Group — narrowest possible */
   .team-table th.col-group,
   .team-table td.col-group {
-    width: 50px;
-    min-width: 50px;
-    max-width: 50px;
+    width: 50px !important;
+    min-width: 50px !important;
+    max-width: 50px !important;
     padding-left: 2px;
     padding-right: 2px;
   }
   .team-table td.col-group select {
     width: 100%;
     padding: 0 2px;
+    box-sizing: border-box;
   }
   /* Notes — icon column, narrow */
   .team-table th.col-notes,
   .team-table td.col-notes {
-    width: 36px;
-    min-width: 36px;
-    max-width: 36px;
+    width: 36px !important;
+    min-width: 36px !important;
+    max-width: 36px !important;
     text-align: center;
     padding: 4px 2px;
   }
@@ -585,9 +600,9 @@
   .btn-notes-icon.has-notes { background: #FFF7CC; border-color: #C9A227; }
   .team-table th.col-rest,
   .team-table td.col-rest {
-    width: 60px;
-    min-width: 60px;
-    max-width: 60px;
+    width: 60px !important;
+    min-width: 60px !important;
+    max-width: 60px !important;
     text-align: center;
   }
   .team-table th.col-rest {
@@ -597,8 +612,9 @@
   }
   .team-table th.col-action,
   .team-table td.col-action {
-    width: 30px;
-    min-width: 30px;
+    width: 30px !important;
+    min-width: 30px !important;
+    max-width: 30px !important;
     padding: 4px 2px;
   }
   .team-table th.col-name {
