@@ -211,10 +211,48 @@
   }
   table.grid th, table.grid td {
     border: 1px solid var(--gray-border);
-    padding: 5px 8px;
+    padding: 4px 6px;             /* tightened from 5px 8px — minimum-width columns */
     font-size: 12px;
     vertical-align: middle;
-    line-height: 1.3;
+    line-height: 1.25;
+    white-space: nowrap;          /* let column width = content width */
+  }
+  /* Per-tab body containers scroll horizontally when content is wider than viewport */
+  #noiBody, #saleBody, #teamBody, #sensBody, #chartsBody,
+  #sensitivityModalBody, #chartsModalBody, #dealsBody {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* NOI — Year column sticky-left so user can scroll metrics right while
+     keeping the year visible (same trick as Investor Team Name column). */
+  .noi-table th:first-child,
+  .noi-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--gray-zebra);
+    min-width: 56px;
+    max-width: 56px;
+    width: 56px;
+    text-align: center;
+    font-weight: 600;
+  }
+  .noi-table thead th:first-child {
+    background: var(--navy);
+    color: #FFF;
+  }
+  /* Investor Team — Name column sticky on ALL viewports (was mobile-only) */
+  .team-table th:nth-child(2),
+  .team-table td:nth-child(2) {
+    position: sticky;
+    left: 22px;       /* sits right after the # column (width 22px) */
+    z-index: 2;
+    background: var(--gray-zebra);
+  }
+  .team-table thead th:nth-child(2) {
+    background: var(--navy);
+    color: #FFF;
   }
   table.grid th {
     background: var(--navy);
