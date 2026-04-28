@@ -1037,6 +1037,28 @@
     outline-offset: -1px;
   }
 
+  /* Summary "Distribution at exit" — narrow money columns since values are
+     now compact ($XXk). % Eq. is also narrow. Profit header is two-line so
+     `white-space: normal` is required (overrides the global `nowrap` we
+     set on table.grid cells). */
+  table.grid.dist-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+  .dist-table th, .dist-table td { white-space: normal; }
+  .dist-table th.dist-contrib, .dist-table td.dist-contrib {
+    width: 70px !important; min-width: 70px !important; max-width: 70px !important;
+  }
+  .dist-table th.dist-eq, .dist-table td.dist-eq {
+    width: 60px !important; min-width: 60px !important; max-width: 60px !important;
+  }
+  .dist-table th.dist-profit, .dist-table td.dist-profit {
+    width: 70px !important; min-width: 70px !important; max-width: 70px !important;
+    line-height: 1.15;          /* keep the two-line header tight */
+  }
+  .dist-table th.dist-total, .dist-table td.dist-total {
+    width: 80px !important; min-width: 80px !important; max-width: 80px !important;
+  }
   /* Summary tab: section headers carry a small "copy section" button on
      the right. Click → clean text representation of that section lands on
      the clipboard, ready to paste into email / Slack / Google Doc. */
@@ -1610,7 +1632,7 @@
       <span class="brand">ABCOapp</span>
       <span class="deal-name" id="dealNameDisplay">Moab Early — 805 N Main</span>
       <div class="actions actions-right">
-        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v260428-0030</span>
+        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v260428-0050</span>
         <button id="feedbackBtn" class="feedback-icon" data-tip="Q & A / Feedback (questions log)">F</button>
         <button id="helpBtn" class="help-icon" data-tip="How to use this app">?</button>
       </div>
@@ -3425,13 +3447,18 @@ function renderSummary() {
     },
     "Distribution"
   ));
-  const tbl = el("table", {className: "grid"});
+  const tbl = el("table", {className: "grid dist-table"});
+  // Two-line "Profit at exit" header — innerHTML rather than textContent so
+  // the <br> renders. Other narrowed-name columns use abbreviated labels
+  // so the table fits without horizontal scroll.
+  const profitTh = el("th", {className: "dist-profit"});
+  profitTh.innerHTML = "Profit<br>at exit";
   const thead = el("thead", null, el("tr", null, [
-    el("th", null, "Member"),
-    el("th", null, "Contribution"),
-    el("th", null, "% of equity"),
-    el("th", null, "Profit at exit"),
-    el("th", null, "Total return"),
+    el("th", {className: "dist-member"}, "Member"),
+    el("th", {className: "dist-contrib"}, "Cntrbt"),
+    el("th", {className: "dist-eq"},      "% Eq."),
+    profitTh,
+    el("th", {className: "dist-total"},   "Total return"),
   ]));
   tbl.appendChild(thead);
   const tbody = el("tbody");
@@ -3442,11 +3469,11 @@ function renderSummary() {
   };
   distRows.forEach(d => {
     tbody.appendChild(el("tr", null, [
-      el("td", {className: "label"}, d.name),
-      $kCell(d.contribution),
-      el("td", {className: "num"}, fmtPct(d.ownership_pct)),
-      $kCell(d.profit, "num output"),
-      $kCell(d.total_return),
+      el("td", {className: "label dist-member"}, d.name),
+      $kCell(d.contribution, "num dist-contrib"),
+      el("td", {className: "num dist-eq"}, fmtPct(d.ownership_pct)),
+      $kCell(d.profit, "num output dist-profit"),
+      $kCell(d.total_return, "num dist-total"),
     ]));
   });
   tbl.appendChild(tbody);
