@@ -1157,7 +1157,7 @@
     .topbar #newDealBtn { font-size: 0; padding: 8px 10px; }
     .topbar #newDealBtn::before { content: "+ Deal"; font-size: 11px; font-weight: 600; }
     .topbar #saveVersionBtn { font-size: 0; padding: 8px 12px; }
-    .topbar #saveVersionBtn::before { content: "Save"; font-size: 12px; font-weight: 700; }
+    .topbar #saveVersionBtn::before { content: "+ Variant"; font-size: 11px; font-weight: 700; }
     .topbar #dealsBtn { font-size: 11px; padding: 8px 10px; font-weight: 600; }
     .topbar .feedback-icon, .topbar .help-icon {
       width: 30px; height: 30px;
@@ -1304,7 +1304,7 @@
     .topbar #newDealBtn::before { content: "+"; }
     .topbar #dealsBtn { font-size: 0; padding: 6px 8px; }
     .topbar #dealsBtn::before { content: "≡"; font-size: 16px; line-height: 1; }
-    .topbar #saveVersionBtn::before { content: "✓"; font-size: 14px; font-weight: 700; }
+    .topbar #saveVersionBtn::before { content: "+v"; font-size: 12px; font-weight: 700; }
     .tabs button { padding: 9px 10px; font-size: 12px; }
   }
 </style>
@@ -1322,7 +1322,7 @@
 
   <!-- TOP BAR — two rows.
        Row 1: ABCOapp brand (left) + deal name (center, flex) + F + ? (right)
-       Row 2: Claude + ↶ + ↷ + DEALS + +DEAL + +Save (left group) | ⚙ + Dev (right group, sits under F + ?) -->
+       Row 2: Claude + ↶ + ↷ + DEALS + +DEAL + + New Variant (left group) | ⚙ + Dev (right group, sits under F + ?) -->
   <header class="topbar">
     <div class="topbar-row topbar-row-1">
       <span class="brand">ABCOapp</span>
@@ -1339,7 +1339,7 @@
         <button id="redoBtn" disabled>↷</button>
         <button id="dealsBtn" data-tip="Browse all saved deals & versions">DEALS</button>
         <button id="newDealBtn" data-tip="Create a new deal from a template">+ DEAL</button>
-        <button id="saveVersionBtn" class="primary" data-tip="Save current state as a new version">+ Save</button>
+        <button id="saveVersionBtn" class="primary" data-tip="Fork: save current state, bump deal name (v2/v3…) and switch to the new variant">+ New Variant</button>
       </div>
       <div class="actions actions-right">
         <button id="settingsBtn" data-tip="Settings, defaults, templates">⚙</button>
@@ -1514,10 +1514,11 @@
         <p>Click <strong>Inputs</strong> to change deal terms. Yellow cells are editable. Type a number, hit Tab. Every other tab updates instantly. Use <strong>Cmd-Z</strong> (or <strong>Ctrl-Z</strong>) to undo.</p>
 
         <h3>Investor Team</h3>
-        <p>Click <strong>Investor Team</strong> to set up the cap stack. Each member has a Contribution and an Ownership %. Use <strong>Group</strong> to lock several members to equal share. Use <strong>Auto-deduct</strong> on one member so their % auto-fills as 100% − everyone else. The cap stack must equal 100% before saving a version.</p>
+        <p>Click <strong>Investor Team</strong> to set up the cap stack. Each member has a Contribution and an Ownership %. Use <strong>Group</strong> to lock several members to equal share. Use <strong>Auto-deduct</strong> on one member so their % auto-fills as 100% − everyone else. The cap-stack sum displays in red when it's not 100%, but variants can be forked at any total — the warning is informational.</p>
 
-        <h3>Save a version</h3>
-        <p>Click <strong>+ Save</strong> in the top bar. The first save will ask you to grant the app permission to write to a folder on your computer (the same folder this app is in). Click Allow once and you're done — every future save writes silently to that folder.</p>
+        <h3>Fork a variant</h3>
+        <p>Click <strong>+ New Variant</strong> in the top bar. This snapshots the current deal under its current name, then forks: the deal name auto-bumps (<em>v2</em>, then <em>v3</em>, …) and the app switches to the new variant so further edits don't touch the prior version. The first fork will ask permission to write the xlsx snapshot to the folder this app lives in — click Allow once and every future fork writes silently.</p>
+        <p style="margin-top:6px;color:var(--gray-text)">Tip: edits between forks are autosaved continuously. <strong>+ New Variant</strong> is for branching — when you want to compare two scenarios side-by-side without overwriting the first.</p>
 
         <h3>Make a new deal</h3>
         <p>Click <strong>+ New</strong>. Pick a template (last-used is highlighted at top). The form opens pre-filled with the template's defaults — edit, save, done.</p>
@@ -2506,6 +2507,99 @@ async function saveVersion() {
   }
 
   if (activeTab === "versions") renderActiveTab();
+}
+
+// ----- NEW VARIANT (forking save) -----
+// Bump a deal name by promoting (or appending) a "v<N>" suffix.
+//   "Moab Early v1"     -> "Moab Early v2"
+//   "Moab Early — 805"  -> "Moab Early — 805 v2"
+//   "Untitled"          -> "Untitled v2"
+//   ""                  -> "Untitled v2"
+// Recognizes only " v<digits>" (lowercase v, space-separated) at the end so
+// trailing addresses/suite numbers like "Building 12" don't get mis-parsed.
+function bumpVariantName(name) {
+  const trimmed = (name || "").trim() || "Untitled";
+  const m = trimmed.match(/^(.*?)\s+v(\d+)$/);
+  if (m) return m[1] + " v" + (parseInt(m[2], 10) + 1);
+  return trimmed + " v2";
+}
+
+// Replaces the old saveVersion() click target. Click semantics:
+//   1. Save current edits as a version under the CURRENT deal_id (preserves
+//      the old name in the Deal Browser — "exit old file name").
+//   2. Mint a new deal_id, bump deal_name to v<N+1>, reset version pointers.
+//   3. Save the bumped state as the first version of the new variant.
+//   4. Activate the new variant in-app (topbar updates, autosave, re-render).
+//   5. Best-effort xlsx export (silent — no double toast).
+//
+// Net effect: every click forks. Old deal stays untouched in the browser at
+// its old name. The current working state becomes "<old> v2" / "<old> v3".
+async function saveAsNewVariant() {
+  if (!state || !computed) {
+    toast("App still loading — try again in a moment");
+    return;
+  }
+
+  // Step 1 — snapshot the OLD state under the OLD deal_id/name.
+  const oldName = state.deal_name || getDealShortName(state) || "Untitled";
+  const oldVersion = {
+    version_id:        uuid(),
+    deal_id:           state.deal_id,
+    deal_short_name:   getDealShortName(state),
+    saved_at:          todayISO(),
+    parent_version_id: state.last_version_id || null,
+    state:             JSON.parse(JSON.stringify(state)),
+    manual_changes:    deriveManualChanges(),
+  };
+  await dbPut("versions", oldVersion);
+
+  // Step 2 — fork: new deal identity, bumped name, fresh creation timestamp.
+  const newName = bumpVariantName(oldName);
+  state.deal_id          = uuid();
+  state.deal_name        = newName;
+  state.last_version_id  = null;
+  state.last_saved_at    = null;
+  state.created_at       = todayISO();
+  state.last_edited_date = todayISO();
+
+  // Step 3 — first save under the new variant.
+  const newVersion = {
+    version_id:        uuid(),
+    deal_id:           state.deal_id,
+    deal_short_name:   getDealShortName(state),
+    saved_at:          todayISO(),
+    parent_version_id: oldVersion.version_id,
+    state:             JSON.parse(JSON.stringify(state)),
+    manual_changes:    [],
+  };
+  await dbPut("versions", newVersion);
+  state.last_version_id = newVersion.version_id;
+  state.last_saved_at   = newVersion.saved_at;
+
+  // Persist autosave so a refresh lands on the new variant, not the old.
+  await dbPut("autosave", {id: "current_draft", state: state, saved_at: todayISO()});
+
+  // Reset undo stack — the old edit history belonged to the prior deal_id.
+  // Keeping it would let undo cross deal boundaries and corrupt state.
+  undoStack = [];
+  redoStack = [];
+  if (typeof updateUndoRedoUI === "function") updateUndoRedoUI();
+
+  // Update visible deal name in topbar + active tab.
+  refreshDealName();
+  if (activeTab === "versions") renderActiveTab(); else renderActiveTab();
+
+  toast(`Forked “${oldName}” → “${newName}”`, 3500);
+
+  // Optional xlsx export — silent so we don't double-toast.
+  if (state.meta && state.meta.skip_xlsx_export) {
+    return;
+  }
+  try {
+    await exportXlsxSnapshot({silent: true});
+  } catch (e) {
+    console.warn("xlsx export skipped on variant fork:", e);
+  }
 }
 
 function deriveManualChanges() {
@@ -3819,7 +3913,7 @@ async function renderVersions() {
 
   if (rows.length === 0) {
     const tr = el("tr"); tr.appendChild(el("td", {colspan: cols.length, className: "kv-hint", style: "text-align: center; padding: 20px;"},
-      "No saved versions yet. Click [+ Save Version] in the top bar to save the current deal."));
+      "No saved versions yet. Click [+ New Variant] in the top bar to fork the current deal."));
     tbody.appendChild(tr);
   }
 
@@ -4239,7 +4333,7 @@ function bindKeyboard() {
     else if ((meta && e.shiftKey && e.key === "Z") || (meta && e.key === "y")) { e.preventDefault(); redo(); }
     else if (meta && e.key === "[") { e.preventDefault(); navTab(-1); }
     else if (meta && e.key === "]") { e.preventDefault(); navTab(1); }
-    else if (meta && e.key === "s") { e.preventDefault(); saveVersion(); }
+    else if (meta && e.key === "s") { e.preventDefault(); saveAsNewVariant(); }
   });
 }
 
@@ -4285,7 +4379,7 @@ function bindUI() {
   document.getElementById("undoBtn").addEventListener("click", undo);
   document.getElementById("redoBtn").addEventListener("click", redo);
   document.getElementById("newDealBtn").addEventListener("click", openNewDeal);
-  document.getElementById("saveVersionBtn").addEventListener("click", saveVersion);
+  document.getElementById("saveVersionBtn").addEventListener("click", saveAsNewVariant);
   document.getElementById("settingsBtn").addEventListener("click", openSettings);
   document.getElementById("helpBtn").addEventListener("click", openHelp);
 
