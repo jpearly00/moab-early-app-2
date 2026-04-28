@@ -86,6 +86,24 @@
     letter-spacing: 0.6px;
     flex-shrink: 0;
   }
+  /* Build stamp — small grey monospace pill the user can read at a glance to
+     verify which build is loaded. Click force-purges every cache + SW
+     registration and reloads, sidestepping any PWA staleness. */
+  .topbar .build-stamp {
+    color: rgba(255,255,255,0.55);
+    font-size: 10px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    margin-right: 8px;
+    padding: 2px 6px;
+    border: 1px solid rgba(255,255,255,0.20);
+    border-radius: 3px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .topbar .build-stamp:hover {
+    color: #FFF;
+    border-color: rgba(255,255,255,0.50);
+  }
   .topbar-row-1 .deal-name {
     flex: 1;
     font-weight: 600;
@@ -264,25 +282,41 @@
      Selectors use table.grid.noi-table to outrank mobile rules that target
      `table.grid td.label { min-width: 130px }` — without that extra .grid
      hop, the Yr column balloons to 130px on mobile. */
+  /* NOI table: fixed-width Yr column (28px), sticky-left on EVERY viewport
+     including mobile. The mobile @media block below previously let
+     `table.grid td.label { min-width: 130px }` win — so we re-assert here
+     with `!important` AND repeat the rule inside the mobile media query. */
   table.grid.noi-table {
     table-layout: fixed;
-    width: 100%;
-    min-width: 600px;
+    width: max-content;       /* hug intrinsic column widths so scroll works */
+    min-width: 100%;          /* but at least fill the body container */
   }
   table.grid.noi-table th:first-child,
   table.grid.noi-table td:first-child,
-  table.grid.noi-table td.label:first-child {
-    position: sticky;
-    left: 0;
+  table.grid.noi-table td.label:first-child,
+  table.grid.noi-table td.num:first-child {
+    position: sticky !important;
+    left: 0 !important;
     z-index: 2;
     background: var(--gray-zebra);
-    min-width: 24px !important;
-    max-width: 24px !important;
-    width: 24px !important;       /* 3-char target ("10*" in 11px mono) */
-    padding: 3px 1px;
-    font-size: 11px;
-    text-align: center;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    width: 28px !important;       /* 3-char target ("10*" in 11px mono) */
+    padding: 3px 1px !important;
+    font-size: 11px !important;
+    text-align: center !important;
     font-weight: 600;
+  }
+  table.grid.noi-table th:not(:first-child),
+  table.grid.noi-table td:not(:first-child) {
+    min-width: 70px !important;   /* compact metric columns */
+    max-width: 110px !important;
+  }
+  /* Container scrolls horizontally on every viewport — that's the
+     "scroll left/right with year pinned" behavior the user asked for. */
+  #noiBody {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
   }
   table.grid.noi-table th:not(:first-child),
   table.grid.noi-table td:not(:first-child) {
@@ -446,13 +480,14 @@
     left: 6px;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--gray-label);
+    color: var(--navy);                /* darker — stand out */
     font-family: "SF Mono", "Consolas", "Menlo", monospace;
-    font-size: 11px;
+    font-size: 15px;                   /* +2 sizes (was 11px) */
+    font-weight: 700;
     pointer-events: none;
   }
   section[data-tab="inputs"] .kv-value.money input {
-    padding-left: 14px;
+    padding-left: 18px;                /* matches the bigger $ */
   }
   /* % suffix for percent inputs */
   section[data-tab="inputs"] .kv-value.pct {
@@ -464,13 +499,14 @@
     right: 6px;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--gray-label);
+    color: var(--navy);
     font-family: "SF Mono", "Consolas", "Menlo", monospace;
-    font-size: 11px;
+    font-size: 15px;                   /* +2 sizes (was 11px) */
+    font-weight: 700;
     pointer-events: none;
   }
   section[data-tab="inputs"] .kv-value.pct input {
-    padding-right: 14px;
+    padding-right: 18px;
   }
   /* Collapsible section headers on Inputs */
   .kv-section.collapsible {
@@ -1038,6 +1074,11 @@
     height: 16px;
     display: block;
   }
+  .favbtn .actglyph {
+    font-size: 14px;
+    line-height: 1;
+    display: block;
+  }
   .favbtn.disabled {
     opacity: 0.35;
     pointer-events: none;
@@ -1542,6 +1583,7 @@
       <span class="brand">ABCOapp</span>
       <span class="deal-name" id="dealNameDisplay">Moab Early — 805 N Main</span>
       <div class="actions actions-right">
+        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v260427-2355</span>
         <button id="feedbackBtn" class="feedback-icon" data-tip="Q & A / Feedback (questions log)">F</button>
         <button id="helpBtn" class="help-icon" data-tip="How to use this app">?</button>
       </div>
@@ -3343,6 +3385,23 @@ function renderInputs() {
     header.addEventListener("click", () => toggleCollapsedSection(g));
     kv.appendChild(header);
 
+    // Reusable EMOJI/text action button (Call / SMS / Email — protocols
+    // that don't have a favicon domain). Same shape as mkFavBtn.
+    const mkActBtn = (href, title, glyph, brandColor, disabled) => {
+      const a = el("a", {
+        className: "favbtn" + (disabled ? " disabled" : ""),
+        rel: "noopener noreferrer",
+        title: title,
+      });
+      a.href = disabled ? "#" : href;
+      a.style.borderColor = brandColor;
+      const span = document.createElement("span");
+      span.className = "actglyph";
+      span.textContent = glyph;
+      a.appendChild(span);
+      return a;
+    };
+
     // Reusable favicon launcher button. Pulls the brand icon from Google's
     // s2 favicon service so we never have to bundle SVGs. `disabled` adds a
     // dashed border + 35% opacity when the underlying field is empty.
@@ -3386,12 +3445,7 @@ function renderInputs() {
       }
       if (k === "contact_name") {
         // LinkedIn launcher — opens LinkedIn People search pre-filled with
-        // the contact name + any other identifiers we have on record (email,
-        // phone, business name, address city). LinkedIn matches across all
-        // of those, so passing them as keywords surfaces the actual profile
-        // when one exists. We can't programmatically VERIFY a match without
-        // an API key, so the button is shown whenever a contact name exists
-        // and the user verifies the match by clicking through.
+        // the contact name + any other identifiers we have on record.
         const name = (state.contact_name || "").trim();
         const empty = name.length === 0;
         const extras = [
@@ -3405,11 +3459,42 @@ function renderInputs() {
         const acts = el("span", {className: "label-fav-actions"});
         acts.appendChild(mkFavBtn(
           liHref,
-          empty ? "Enter a contact name first" :
-                  "Search LinkedIn for: " + q,
-          "linkedin.com",
-          "#0A66C2",
-          empty
+          empty ? "Enter a contact name first" : "Search LinkedIn for: " + q,
+          "linkedin.com", "#0A66C2", empty
+        ));
+        labelDiv.appendChild(acts);
+      }
+      if (k === "contact_phone") {
+        // Call (tel:) + SMS (sms:) launchers. Native iOS/Android intercept
+        // these schemes; macOS opens FaceTime / Messages.
+        const phoneRaw = (state.contact_phone || "");
+        const phone = phoneRaw.replace(/[^\d+]/g, "");   // strip formatting
+        const empty = phone.length < 7;
+        const acts = el("span", {className: "label-fav-actions"});
+        acts.appendChild(mkActBtn(
+          empty ? "#" : "tel:" + phone,
+          empty ? "Enter a phone number first" : "Call " + phoneRaw,
+          "📞", "#34A853", empty
+        ));
+        acts.appendChild(mkActBtn(
+          empty ? "#" : "sms:" + phone,
+          empty ? "Enter a phone number first" : "Text " + phoneRaw,
+          "💬", "#0A66C2", empty
+        ));
+        labelDiv.appendChild(acts);
+      }
+      if (k === "contact_email") {
+        // mailto: launcher. Default subject = property STREET (everything
+        // before the first comma, e.g. "805 N Main St"), per user request.
+        const email = (state.contact_email || "").trim();
+        const empty = email.length === 0;
+        const street = ((state.property_address_full || "").split(",")[0] || "").trim();
+        const subjQS = street ? "?subject=" + encodeURIComponent(street) : "";
+        const acts = el("span", {className: "label-fav-actions"});
+        acts.appendChild(mkActBtn(
+          empty ? "#" : "mailto:" + email + subjQS,
+          empty ? "Enter an email first" : "Email " + email + (street ? " — subject: " + street : ""),
+          "✉", "#EA4335", empty
         ));
         labelDiv.appendChild(acts);
       }
@@ -3461,6 +3546,38 @@ function buildInputControl(key, f) {
     sel.addEventListener("change", () => setField(key, sel.value === "true"));
     return sel;
   }
+  // Money fields ($) — text input with thousands-comma formatting on blur.
+  // <input type="number"> can't display "1,225,000"; native browser sees the
+  // commas as invalid characters and refuses to render them. Switching to
+  // text + inputmode lets us format freely. Storage stays a Number — we
+  // strip commas before calling setField. Focus shows the bare number for
+  // easy keyboard editing; blur re-formats with commas.
+  if (f.fmt === "$") {
+    const inp = el("input", {type: "text", inputMode: "decimal"});
+    inp.dataset.field = key;
+    inp.autocomplete = "off";
+    const withCommas = (raw) => {
+      if (raw === "" || raw == null) return "";
+      const n = Number(raw);
+      if (isNaN(n)) return "";
+      return n.toLocaleString("en-US", {maximumFractionDigits: 2});
+    };
+    inp.value = withCommas(v);
+    inp.addEventListener("focus", () => {
+      inp.value = (v == null) ? "" : String(state[key] || 0);
+      setTimeout(() => { try { inp.select(); } catch (e) {} }, 0);
+    });
+    inp.addEventListener("blur", () => {
+      inp.value = withCommas(state[key]);
+    });
+    inp.addEventListener("change", () => {
+      const raw = inp.value.replace(/[,\s\$]/g, "");
+      const num = (raw === "" || isNaN(Number(raw))) ? 0 : Number(raw);
+      setField(key, num);
+    });
+    return inp;
+  }
+
   // Property address: 2-line textarea.
   // Storage stays a single comma-separated string so xlsx/Nominatim/Maps/
   // Zillow round-trips don't break — the newline is purely a display/edit
@@ -5058,6 +5175,24 @@ function bindUI() {
   document.getElementById("redoBtn").addEventListener("click", redo);
   document.getElementById("newDealBtn").addEventListener("click", openNewDeal);
   document.getElementById("saveVersionBtn").addEventListener("click", saveAsNewVariant);
+
+  // Build-stamp click → force-purge SWs + caches + IndexedDB.autosave NOT
+  // touched; just a hard reload. Sidesteps any PWA staleness.
+  const stampEl = document.getElementById("buildStamp");
+  if (stampEl) stampEl.addEventListener("click", async () => {
+    if (!confirm("Force-refresh the app? Clears caches and reloads. (Your saved deals are safe.)")) return;
+    try {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      if (window.caches) {
+        const names = await caches.keys();
+        await Promise.all(names.map(n => caches.delete(n)));
+      }
+    } catch (e) { console.warn("force-refresh cleanup error:", e); }
+    location.reload(true);
+  });
   document.getElementById("settingsBtn").addEventListener("click", openSettings);
   document.getElementById("helpBtn").addEventListener("click", openHelp);
 
