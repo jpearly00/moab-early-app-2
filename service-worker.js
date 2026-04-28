@@ -53,9 +53,13 @@ self.addEventListener("fetch", (event) => {
   const isManifest = url.pathname.endsWith("manifest.json");
 
   if (isHtml || isManifest) {
-    // Network-first: always try the network, fall back to cache only when offline.
+    // Network-first AND bypass HTTP cache: cache:"reload" forces a real
+    // round-trip every time, so 10-minute Cache-Control headers from GH
+    // Pages can never serve stale HTML. Falls back to SW cache only when
+    // offline. Result: every page open = guaranteed newest version. No hard
+    // reset ever needed.
     event.respondWith(
-      fetch(req).then((resp) => {
+      fetch(req, {cache: "reload"}).then((resp) => {
         if (resp && resp.status === 200) {
           const clone = resp.clone();
           caches.open(CACHE).then((cache) => cache.put(req, clone));
