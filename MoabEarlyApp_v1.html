@@ -931,51 +931,48 @@
     font-size: 12px;
     min-width: 280px;
   }
-  /* Property-address input with inline Maps + Zillow launchers on the LEFT.
-     Address text right-aligns in the cell, so the LEFT edge is empty
-     whitespace — putting the buttons there guarantees no overlap with the
-     address regardless of length. Buttons have FIXED width (50px each) and
-     input reserves a matching padding-left gutter. */
-  .input-with-actions {
-    position: relative;
-    display: block;
-    width: 100%;
+  /* Property-address favicon launchers — pinned to the right edge of the
+     white LABEL cell (NOT inside the yellow input). Two square buttons
+     side-by-side with the actual brand favicons. .kv-label is already
+     display:flex; align-items:center on the Inputs tab, so margin-left:auto
+     pushes the action span to the cell's right edge. */
+  .label-fav-actions {
+    margin-left: auto;
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    flex-shrink: 0;
   }
-  .input-with-actions > input {
-    width: 100%;
-    /* 4 (left pad) + 50 (Maps) + 4 (gap) + 50 (Zillow) + 8 (text gap) */
-    padding-left: 116px;
-    box-sizing: border-box;
-  }
-  .input-with-actions .field-action {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    height: 26px;
-    width: 50px;            /* fixed — no clipping regardless of text */
-    padding: 0;
-    background: #FFF;
-    border: 1px solid var(--gray-border);
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--navy);
-    cursor: pointer;
-    text-decoration: none;
+  .favbtn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    line-height: 1;
-    white-space: nowrap;
+    width: 28px;
+    height: 28px;
+    background: #FFF;
+    border: 1px solid var(--gray-border);
+    border-radius: 6px;
+    text-decoration: none;
+    cursor: pointer;
+    padding: 0;
+    box-sizing: border-box;
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
   }
-  .input-with-actions .field-action:hover { background: var(--blue-hover); }
-  .input-with-actions .field-action.disabled {
+  .favbtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  }
+  .favbtn:active { transform: translateY(0); }
+  .favbtn img {
+    width: 16px;
+    height: 16px;
+    display: block;
+  }
+  .favbtn.disabled {
     opacity: 0.35;
     pointer-events: none;
+    border-style: dashed;
   }
-  /* Maps leftmost; Zillow to its right with a 4px gap */
-  .input-with-actions .field-action.maps   { left: 4px; }
-  .input-with-actions .field-action.zillow { left: 58px; }
   .autocomplete-dropdown .item {
     padding: 7px 10px;
     border-bottom: 1px solid var(--gray-border);
@@ -3196,7 +3193,43 @@ function renderInputs() {
 
     groups[g].forEach(k => {
       const f = FIELDS[k];
-      kv.appendChild(el("div", {className: "kv-label"}, f.label));
+      // Build the LABEL cell. Property-address gets two favicon launcher
+      // buttons (Google Maps "G" + Zillow "Z") pinned to the right edge of
+      // the white label cell. Address text in the yellow value cell stays
+      // free of overlapping controls.
+      const labelDiv = el("div", {className: "kv-label"});
+      labelDiv.appendChild(document.createTextNode(f.label));
+      if (k === "property_address_full") {
+        const acts = el("span", {className: "label-fav-actions"});
+        const addr = (state[k] || "").trim();
+        const enc  = encodeURIComponent(addr);
+        const empty = addr.length === 0;
+        const mapsHref   = empty ? "#" : "https://www.google.com/maps/search/?api=1&query=" + enc;
+        const zillowHref = empty ? "#" : "https://www.zillow.com/homes/" + enc + "_rb/";
+        const mkBtn = (href, title, domain, brandColor) => {
+          const a = el("a", {
+            className: "favbtn" + (empty ? " disabled" : ""),
+            target: "_blank",
+            rel: "noopener noreferrer",
+            title: title,
+          });
+          a.href = href;
+          a.style.borderColor = brandColor;
+          // Google's s2 favicon service — fetches the actual brand icon.
+          // sz=64 → crisp on Retina; img sized to 16px in CSS.
+          const img = document.createElement("img");
+          img.src = "https://www.google.com/s2/favicons?domain=" + domain + "&sz=64";
+          img.alt = title;
+          img.width = 16;
+          img.height = 16;
+          a.appendChild(img);
+          return a;
+        };
+        acts.appendChild(mkBtn(mapsHref,   "Open in Google Maps", "maps.google.com", "#4285F4"));
+        acts.appendChild(mkBtn(zillowHref, "Open on Zillow",      "zillow.com",       "#1969E5"));
+        labelDiv.appendChild(acts);
+      }
+      kv.appendChild(labelDiv);
       // Tag the value cell with .money or .pct so the CSS adds $ / % markers.
       const valClasses = ["kv-value"];
       if (f.fmt === "$") valClasses.push("money");
@@ -3247,42 +3280,9 @@ function buildInputControl(key, f) {
   }
   input.addEventListener("change", () => setField(key, input.value));
 
-  // Property address gets two inline launcher buttons: Maps + Zillow. Each
-  // opens the current address in a new tab. Buttons stay disabled-looking
-  // (greyed) when the field is empty so the user knows they need to fill it.
-  if (key === "property_address_full") {
-    const wrap = el("div", {className: "input-with-actions"});
-    wrap.appendChild(input);
-    const updateLinks = () => {
-      const addr = (input.value || "").trim();
-      const enc  = encodeURIComponent(addr);
-      const empty = addr.length === 0;
-      mapsA.href   = empty ? "#" : "https://www.google.com/maps/search/?api=1&query=" + enc;
-      zillowA.href = empty ? "#" : "https://www.zillow.com/homes/" + enc + "_rb/";
-      mapsA.classList.toggle("disabled", empty);
-      zillowA.classList.toggle("disabled", empty);
-    };
-    const mapsA = el("a", {
-      className: "field-action maps",
-      target: "_blank",
-      rel: "noopener noreferrer",
-      title: "Open this address in Google Maps",
-    }, "Maps");
-    const zillowA = el("a", {
-      className: "field-action zillow",
-      target: "_blank",
-      rel: "noopener noreferrer",
-      title: "Open this address on Zillow",
-    }, "Zillow");
-    wrap.appendChild(mapsA);
-    wrap.appendChild(zillowA);
-    // Refresh hrefs on every keystroke so the buttons always target the
-    // address shown right now (including before the user blurs out).
-    input.addEventListener("input", updateLinks);
-    input.addEventListener("change", updateLinks);
-    updateLinks();
-    return wrap;
-  }
+  // (Maps + Zillow launchers used to live inside the property-address input
+  // wrapper. Per user request 260427-2200, they were moved OUT of the yellow
+  // input cell and into the LABEL cell — see renderInputs for that markup.)
   return input;
 }
 
