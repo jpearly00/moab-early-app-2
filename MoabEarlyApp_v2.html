@@ -1326,6 +1326,76 @@
     max-width: 280px;
   }
 
+  /* ---------- PAYMENTS / ALMANAC / SUBTABS ---------- */
+  .subtabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .subtab {
+    background: #FFF;
+    border: 1px solid var(--gray-border);
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--gray-label);
+  }
+  .subtab.active { background: var(--navy); color: #FFF; border-color: var(--navy); font-weight: 700; }
+  .subtab:hover:not(.active) { background: var(--blue-hover); }
+  .payments-banner {
+    background: #FFF;
+    border: 1px solid var(--gray-border);
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    border-radius: 3px;
+  }
+  .payments-banner strong { color: var(--navy); }
+  .payments-table { width: 100%; }
+  .payments-table th { font-size: 11px; }
+  .payments-table td { font-size: 12px; }
+  .pay-status { font-weight: 600; text-transform: capitalize; }
+  .pay-status-expected { color: #C9A227; }
+  .pay-status-received { color: #88B04B; }
+  .pay-status-late     { color: #B25450; }
+  .pay-status-voided   { color: #999; text-decoration: line-through; }
+  .pm-bridge-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .pm-bridge-tile {
+    background: #FAFBFC;
+    border: 1px dashed var(--gray-border);
+    border-radius: 4px;
+    padding: 8px 12px;
+    min-width: 140px;
+    flex: 1;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .pm-bridge-tile strong { color: var(--navy); font-size: 13px; }
+  .pm-bridge-tile .kv-hint { font-size: 11px; }
+
+  /* Almanac */
+  .almanac-list {
+    list-style: none; padding: 0; margin: 12px 0 0;
+    border-left: 2px solid var(--gray-border);
+  }
+  .almanac-event {
+    padding: 8px 12px 8px 14px;
+    margin: 4px 0 4px -2px;
+    border-left: 3px solid transparent;
+    background: #FFF;
+  }
+  .almanac-payment_received { border-left-color: #88B04B; }
+  .almanac-receipt_sent     { border-left-color: #6A8FB5; }
+  .almanac-payment_added    { border-left-color: #C9A227; }
+  .almanac-stage_change     { border-left-color: var(--navy); }
+  .almanac-doc_generated    { border-left-color: #B25450; }
+  .almanac-head { display: flex; justify-content: space-between; gap: 12px; }
+  .almanac-type {
+    font-size: 11px;
+    color: var(--navy);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .almanac-time { color: var(--gray-label); font-size: 11px; }
+  .almanac-summary { margin: 3px 0 0; font-size: 13px; color: #333; }
+
   /* ---------- DOCS TAB ---------- */
   .docs-toolbar {
     display: flex;
@@ -2029,7 +2099,7 @@
       <span class="brand">ABCOapp</span>
       <span class="deal-name" id="dealNameDisplay">Moab Early — 805 N Main</span>
       <div class="actions actions-right">
-        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v2-260428-1230 (P2)</span>
+        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v2-260428-1310 (P3+P4)</span>
         <button id="feedbackBtn" class="feedback-icon" data-tip="Q & A / Feedback (questions log)">F</button>
         <button id="helpBtn" class="help-icon" data-tip="How to use this app">?</button>
       </div>
@@ -2074,6 +2144,8 @@
     <button data-tab="noi">NOI</button>
     <button data-tab="team">Investor Team</button>
     <button data-tab="sale">Sale</button>
+    <button data-tab="payments">Payments</button>
+    <button data-tab="almanac">Almanac</button>
     <button data-tab="docs">Docs</button>
     <button data-tab="comms">Comms</button>
   </nav>
@@ -2091,6 +2163,8 @@
     </section>
     <section class="tab-content" data-tab="team"><h2>Investor Team — Cap Stack</h2><div id="teamBody"></div></section>
     <section class="tab-content" data-tab="sale"><h2>Sale — Year-N Exit Waterfall</h2><div id="saleBody"></div></section><!-- h2 hidden via CSS; yearNLabel is dynamic in renderSale -->
+    <section class="tab-content" data-tab="payments"><h2>Payments</h2><div id="paymentsBody"></div></section>
+    <section class="tab-content" data-tab="almanac"><h2>Almanac</h2><div id="almanacBody"></div></section>
     <section class="tab-content" data-tab="docs"><h2>Docs</h2><div id="docsBody"></div></section>
     <section class="tab-content" data-tab="comms"><h2>Comms</h2><div id="commsBody"></div></section>
     <!-- Hidden render targets used by the modals (Sensitivity, Charts, Deals, Questions/Feedback) -->
@@ -2756,6 +2830,13 @@ function setField(key, value, options) {
   state[key] = value;
   state.last_edited_date = todayISO();
   logEdit({source: "setField", field_key: key, before: before, after: value});
+  // Phase 4 — material events auto-emit to Almanac. Stage changes are
+  // material; raw setField keystrokes are not (they go to edit_log only).
+  if (key === "deal_stage") {
+    emitEvent({deal_id: state.deal_id, type: "stage_change",
+                summary: (before || "—") + " → " + (value || "—"),
+                payload: {before: before, after: value}});
+  }
   recompute();
   autosave();
   renderActiveTab();
@@ -3804,6 +3885,13 @@ async function saveAsNewVariant() {
     before: oldVersion.deal_id, after: state.deal_id,
     description: "Forked '" + oldName + "' (" + oldVersion.deal_id.slice(0,8) + ") → '" + newName + "' (" + state.deal_id.slice(0,8) + ")",
   });
+  // Phase 4 — Almanac event for the fork. Tied to NEW deal_id (the alt).
+  emitEvent({deal_id: state.deal_id, type: "fork",
+              summary: "Forked from " + oldName + " → " + newName,
+              payload: {parent_deal_id: oldVersion.deal_id, parent_version_id: oldVersion.version_id}});
+  // Mirror to deals store
+  upsertDeal({deal_id: state.deal_id, deal_code: state.deal_code,
+                deal_name: state.deal_name, latest_version_id: newVersion.version_id});
 
   // Reset undo stack — the old edit history belonged to the prior deal_id.
   // Keeping it would let undo cross deal boundaries and corrupt state.
@@ -4045,6 +4133,8 @@ function renderActiveTab() {
     case "noi":         renderNOI();         break;
     case "team":        renderTeam();        break;
     case "sale":        renderSale();        break;
+    case "payments":    renderPayments();    break;
+    case "almanac":     renderAlmanac();     break;
     case "docs":        renderDocs();        break;
     case "comms":       renderComms();       break;
     // legacy tab values — bounce back to summary if a stale hash points at a removed tab
@@ -5759,6 +5849,226 @@ function renderComms() {
 
   body.appendChild(el("p", {className: "kv-hint", style: "margin-top: 14px"},
     "Placeholder data. Phase 7+ wires these to your actual Gmail / Messages threads via OAuth + a per-party search across both."));
+}
+
+// =============================================================
+// v2 Phase 3 — PAYMENTS TAB (Inflows/Distributions/Down/Buyouts)
+// =============================================================
+
+const PAYMENT_TYPE_LABELS = {
+  investor_inflow: "Inflow",
+  distribution:    "Distribution",
+  down_payment:    "Down payment",
+  buyout:          "Buyout",
+};
+const PAYMENT_SUBTABS = [
+  {key: "inflows",       label: "Inflows",       type: "investor_inflow", direction: "in"},
+  {key: "distributions", label: "Distributions", type: "distribution",    direction: "out"},
+  {key: "down",          label: "Down Payments", type: "down_payment",    direction: "out"},
+  {key: "buyouts",       label: "Buyouts",       type: "buyout",          direction: "either"},
+];
+let _paymentsActiveSub = "inflows";
+
+// Mock-seed payments for the active deal on first visit. Idempotent —
+// only seeds if zero payments exist for this deal_id. Pulls expected
+// inflows from team_members[i].contribution; seeds the EM as a separate
+// down_payment row.
+async function seedPaymentsIfEmpty() {
+  if (!db || !state || !state.deal_id) return;
+  const existing = await listPaymentsByDeal(state.deal_id);
+  if (existing.length > 0) return;
+  const today = new Date().toISOString().slice(0,10);
+  const closeTarget = today;   // until a real closing date field exists
+  // Inflows: each named team member with a contribution > 0
+  for (const m of (state.team_members || [])) {
+    const nm = (m.name || "").trim();
+    const amt = Number(m.contribution) || 0;
+    if (!nm || amt <= 0) continue;
+    if (m.is_auto_deduct) continue;     // operator generally doesn't pre-fund
+    const cid = contactIdFromName(nm, "investor");
+    await addPayment({
+      deal_id: state.deal_id, contact_id: cid,
+      type: "investor_inflow", direction: "in",
+      amount: amt, due_date: closeTarget,
+      status: "expected", method: "wire",
+      notes: "Auto-seeded from cap stack",
+    });
+  }
+  // Down payment for earnest money to seller/title
+  if (Number(state.earnest_money) > 0) {
+    await addPayment({
+      deal_id: state.deal_id, contact_id: null,
+      type: "down_payment", direction: "out",
+      amount: Number(state.earnest_money), due_date: closeTarget,
+      status: "expected", method: "wire",
+      notes: "Earnest money to title",
+    });
+  }
+  // Down payment for the equity-required amount (less EM) to title at close
+  const equity = computed && computed.equity_required;
+  if (equity && equity > 0) {
+    await addPayment({
+      deal_id: state.deal_id, contact_id: null,
+      type: "down_payment", direction: "out",
+      amount: equity - (Number(state.earnest_money) || 0),
+      due_date: closeTarget, status: "expected", method: "wire",
+      notes: "Equity wire at close (less EM)",
+    });
+  }
+}
+
+async function renderPayments() {
+  const body = document.getElementById("paymentsBody");
+  body.innerHTML = "";
+  await seedPaymentsIfEmpty();
+
+  // Sub-tab nav
+  const subnav = el("div", {className: "subtabs"});
+  PAYMENT_SUBTABS.forEach(s => {
+    const b = el("button", {className: "subtab" + (_paymentsActiveSub === s.key ? " active" : "")}, s.label);
+    b.addEventListener("click", () => { _paymentsActiveSub = s.key; renderActiveTab(); });
+    subnav.appendChild(b);
+  });
+  body.appendChild(subnav);
+
+  const sub = PAYMENT_SUBTABS.find(s => s.key === _paymentsActiveSub);
+  const all = state.deal_id ? await listPaymentsByDeal(state.deal_id) : [];
+  const rows = all.filter(p => p.type === sub.type);
+
+  // Summary banner
+  const totalExpected = rows.filter(p => p.status === "expected").reduce((a,p) => a + (Number(p.amount)||0), 0);
+  const totalReceived = rows.filter(p => p.status === "received").reduce((a,p) => a + (Number(p.amount)||0), 0);
+  const banner = el("div", {className: "payments-banner"});
+  banner.appendChild(el("span", null, sub.label + ": "));
+  banner.appendChild(el("strong", null, fmt$(totalExpected) + " expected"));
+  banner.appendChild(el("span", {className: "kv-hint"}, " · "));
+  banner.appendChild(el("strong", null, fmt$(totalReceived) + " received"));
+  body.appendChild(banner);
+
+  // Table
+  const tbl = el("table", {className: "grid payments-table"});
+  tbl.appendChild(el("thead", null, el("tr", null, [
+    el("th", null, "Party"),
+    el("th", null, "Amount"),
+    el("th", null, "Due"),
+    el("th", null, "Status"),
+    el("th", null, "Receipt"),
+    el("th", null, "Actions"),
+  ])));
+  const tbody = el("tbody");
+  if (rows.length === 0) {
+    tbody.appendChild(el("tr", null, el("td", {colspan: 6, className: "kv-hint", style:"text-align:center;padding:20px"},
+      "No " + sub.label.toLowerCase() + " yet. + Add row below.")));
+  } else {
+    for (const p of rows) {
+      const tr = el("tr");
+      // Party — resolve contact_id
+      let partyName = p.notes || "—";
+      if (p.contact_id) {
+        try { const c = await dbGet("contacts", p.contact_id); if (c) partyName = c.name; } catch (e) {}
+      }
+      tr.appendChild(el("td", {className: "label"}, partyName));
+      tr.appendChild(el("td", {className: "num"}, fmt$(p.amount)));
+      tr.appendChild(el("td", null, (p.due_date || "").slice(0,10)));
+      tr.appendChild(el("td", {className: "pay-status pay-status-" + p.status}, p.status));
+      tr.appendChild(el("td", null, p.receipt_sent_at ? "✓ " + p.receipt_sent_at.slice(0,10) : "—"));
+      const actTd = el("td", {className: "row-actions"});
+      if (p.status === "expected") {
+        const rcv = el("button", {className: "btn btn-sm btn-primary"}, "Mark Rcvd");
+        rcv.addEventListener("click", async () => {
+          p.status = "received";
+          p.received_at = new Date().toISOString();
+          await dbPut("payments", p);
+          await emitEvent({deal_id: p.deal_id, type: "payment_received",
+                            payment_ref: p.payment_id, summary: partyName + " — " + fmt$(p.amount)});
+          toast("Marked received");
+          renderActiveTab();
+        });
+        actTd.appendChild(rcv);
+      }
+      if (p.status === "received" && !p.receipt_sent_at) {
+        const rec = el("button", {className: "btn btn-sm"}, "Send Receipt");
+        rec.addEventListener("click", async () => {
+          p.receipt_sent_at = new Date().toISOString();
+          await dbPut("payments", p);
+          await emitEvent({deal_id: p.deal_id, type: "receipt_sent",
+                            payment_ref: p.payment_id, summary: "Receipt to " + partyName});
+          toast("Receipt logged");
+          renderActiveTab();
+        });
+        actTd.appendChild(rec);
+      }
+      tr.appendChild(actTd);
+      tbody.appendChild(tr);
+    }
+  }
+  tbl.appendChild(tbody);
+  body.appendChild(tbl);
+
+  // + Add row
+  const addBtn = el("button", {className: "btn btn-primary", style:"margin:10px 0"}, "+ Add " + sub.label.slice(0,-1));
+  addBtn.addEventListener("click", async () => {
+    const amt = parseFloat(prompt("Amount?", "0") || "0");
+    if (!amt) return;
+    const due = prompt("Due date (YYYY-MM-DD)?", new Date().toISOString().slice(0,10));
+    const notes = prompt("Party / notes?", "") || "";
+    await addPayment({
+      deal_id: state.deal_id, contact_id: null,
+      type: sub.type, direction: sub.direction === "either" ? "out" : sub.direction,
+      amount: amt, due_date: due, status: "expected", method: "wire",
+      notes: notes,
+    });
+    await emitEvent({deal_id: state.deal_id, type: "payment_added",
+                      summary: sub.label + " · " + fmt$(amt) + " · " + notes});
+    renderActiveTab();
+  });
+  body.appendChild(addBtn);
+
+  // PM Software Bridge placeholder (Principle #31 — read-only mirror, never editable here)
+  body.appendChild(el("h3", null, "Property Management Bridge"));
+  body.appendChild(el("p", {className: "kv-hint"},
+    "Rent collection, bills, insurance, maintenance, vendor invoices live in commercial PM software. ABCO mirrors them read-only. Never edits them. Never reinvents them."));
+  const pmRow = el("div", {className: "pm-bridge-row"});
+  ["Buildium","AppFolio","Yardi","RentManager","Hemlane","Stessa"].forEach(name => {
+    const tile = el("div", {className: "pm-bridge-tile"});
+    tile.appendChild(el("strong", null, name));
+    tile.appendChild(el("span", {className: "kv-hint"}, "Not connected"));
+    const b = el("button", {className: "btn btn-sm", disabled: true, title: "Phase 8+"}, "Connect…");
+    tile.appendChild(b);
+    pmRow.appendChild(tile);
+  });
+  body.appendChild(pmRow);
+}
+
+// =============================================================
+// v2 Phase 4 — ALMANAC (Phase 4 fills detail; this is the stub)
+// =============================================================
+async function renderAlmanac() {
+  const body = document.getElementById("almanacBody");
+  body.innerHTML = "";
+  if (!state || !state.deal_id) {
+    body.appendChild(el("p", {className: "kv-hint"}, "No active deal."));
+    return;
+  }
+  const events = await listEventsByDeal(state.deal_id);
+  body.appendChild(el("p", {className: "kv-hint"},
+    "Material events on this deal — every doc, payment, and stage change is logged here. Anti-paper-whip (Principle #21)."));
+  if (events.length === 0) {
+    body.appendChild(el("p", {className: "kv-hint", style:"padding:20px;text-align:center"},
+      "No events yet. They'll appear as you save versions, mark payments received, send docs, and change deal stage."));
+    return;
+  }
+  const list = el("ol", {className: "almanac-list"});
+  events.forEach(ev => {
+    const li = el("li", {className: "almanac-event almanac-" + ev.type});
+    const head = el("div", {className: "almanac-head"});
+    head.appendChild(el("span", {className: "almanac-type"}, ev.type));
+    head.appendChild(el("span", {className: "almanac-time"}, (ev.occurred_at || "").slice(0,16).replace("T"," ")));
+    li.appendChild(head);
+    if (ev.summary) li.appendChild(el("p", {className: "almanac-summary"}, ev.summary));
+    list.appendChild(li);
+  });
+  body.appendChild(list);
 }
 
 function renderSale() {
