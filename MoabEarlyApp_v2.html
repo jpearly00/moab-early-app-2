@@ -1041,6 +1041,12 @@
     white-space: pre-wrap;
   }
   .version-summary-actions { display: flex; gap: 6px; }
+  /* Phase 8 — Working Deal row + Alt indent */
+  .versions-table tr.row-working { background: #E6F3FB; }
+  .versions-table tr.row-working td.label { font-weight: 700; color: var(--navy); }
+  .versions-table tr.row-alt td.label { color: var(--gray-label); font-weight: 500; }
+  .versions-table .alt-marker { color: var(--gray-label); margin-right: 4px; }
+  .versions-table .working-cell { text-align: center; }
   /* Inline stage select in deal browser rows */
   .stage-select {
     padding: 3px 6px;
@@ -2193,7 +2199,7 @@
       <span class="brand">ABCOapp</span>
       <span class="deal-name" id="dealNameDisplay">Moab Early — 805 N Main</span>
       <div class="actions actions-right">
-        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v2-260428-1450 (P7)</span>
+        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v2-260428-1510 (P8)</span>
         <button id="feedbackBtn" class="feedback-icon" data-tip="Q & A / Feedback (questions log)">F</button>
         <button id="helpBtn" class="help-icon" data-tip="How to use this app">?</button>
       </div>
@@ -7300,6 +7306,7 @@ async function renderVersions() {
     {key: "deal_stage",       label: "Stage",      sort: true},
     {key: "purchase_price",   label: "Price",      sort: true},
     {key: "team_count",       label: "# Team",     sort: true},
+    {key: "working",          label: "★",          sort: false},
     {key: "manual_changes",   label: "Manual changes (vs parent)", sort: false},
     {key: "load",             label: "",           sort: false},
   ];
@@ -7328,8 +7335,30 @@ async function renderVersions() {
     tbody.appendChild(tr);
   }
 
+  // Phase 8 — load deals store so we can mark Working + indent alts
+  let dealsMap = {}; let parentChildMap = {};
+  try {
+    const allDeals = await dbAll("deals");
+    allDeals.forEach(d => { dealsMap[d.deal_id] = d; });
+    // Build parent→children: for each version, if it has a parent_version_id,
+    // its OWN deal_id is a child of the parent's deal_id.
+    rows.forEach(v => {
+      if (v.parent_version_id) {
+        const parent = rows.find(p => p.version_id === v.parent_version_id);
+        if (parent && parent.deal_id !== v.deal_id) {
+          if (!parentChildMap[parent.deal_id]) parentChildMap[parent.deal_id] = new Set();
+          parentChildMap[parent.deal_id].add(v.deal_id);
+        }
+      }
+    });
+  } catch (e) { console.warn("deals lookup failed:", e); }
+
   rows.forEach(v => {
     const tr = el("tr");
+    const isAlt = !!v.parent_version_id;
+    const dealRow = dealsMap[v.deal_id] || {};
+    if (dealRow.working) tr.classList.add("row-working");
+    if (isAlt) tr.classList.add("row-alt");
     const cb = el("input", {type: "checkbox"});
     cb.checked = versionsView.selected.has(v.version_id);
     cb.addEventListener("change", () => {
@@ -7343,6 +7372,8 @@ async function renderVersions() {
     // Deal name + grey code (matches topbar treatment so the user sees the
     // same identifier wherever the deal appears).
     const nameTd = el("td", {className: "label"});
+    if (isAlt) nameTd.style.paddingLeft = "26px";   // indent alts under parent
+    if (isAlt) nameTd.appendChild(el("span", {className: "alt-marker"}, "↳ "));
     nameTd.appendChild(document.createTextNode(
       (v.state && v.state.deal_name) || v.deal_short_name || "Untitled"
     ));
@@ -7382,6 +7413,34 @@ async function renderVersions() {
     tr.appendChild(stageTd);
     tr.appendChild(el("td", {className: "num"}, fmt$(v.state && v.state.purchase_price || 0)));
     tr.appendChild(el("td", {className: "num"}, String((v.state && v.state.team_members || []).filter(m => m.name && m.name.trim()).length)));
+    // Phase 8 — Working Deal checkbox. Sets dealsMap[deal_id].working flag.
+    // Single-select: marking a new working deal clears all others.
+    const workTd = el("td", {className: "working-cell"});
+    const workCb = el("input", {type: "checkbox"});
+    workCb.checked = !!(dealRow && dealRow.working);
+    workCb.title = "Mark as Working Deal";
+    workCb.addEventListener("click", e => e.stopPropagation());
+    workCb.addEventListener("change", async () => {
+      // Clear all other working flags first (single-select)
+      const allDeals = await dbAll("deals");
+      for (const d of allDeals) {
+        if (d.working && d.deal_id !== v.deal_id) {
+          d.working = false;
+          await dbPut("deals", d);
+        }
+      }
+      // Then upsert this deal as working/not
+      await upsertDeal({deal_id: v.deal_id,
+                        deal_code: v.state && v.state.deal_code,
+                        deal_name: v.state && v.state.deal_name,
+                        latest_version_id: v.version_id,
+                        working: workCb.checked});
+      toast(workCb.checked ? "Working Deal set" : "Working flag cleared");
+      renderActiveTab();
+      renderLeftRail();
+    });
+    workTd.appendChild(workCb);
+    tr.appendChild(workTd);
     tr.appendChild(el("td", {className: "kv-hint"},
       (v.manual_changes || []).slice(0, 4).map(ch => ch.field_key).join(", ") + ((v.manual_changes || []).length > 4 ? " …" : "")));
     const loadBtn = el("button", {className: "btn"}, "Load");
