@@ -2154,7 +2154,7 @@
       <span class="brand">ABCOapp</span>
       <span class="deal-name" id="dealNameDisplay">Moab Early — 805 N Main</span>
       <div class="actions actions-right">
-        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v2-260428-1340 (P5)</span>
+        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v2-260428-1410 (P6)</span>
         <button id="feedbackBtn" class="feedback-icon" data-tip="Q & A / Feedback (questions log)">F</button>
         <button id="helpBtn" class="help-icon" data-tip="How to use this app">?</button>
       </div>
@@ -2501,6 +2501,23 @@ const FIELDS = {
   noi_projection_years:        {label: "NOI projection length (yrs)", group: "EXIT",       type: "number",  fmt: "int", min: 1,      max: 30,      step: 1, hint: "Years of NOI to model — auto-extends to hold if shorter"},
   exit_cap_rate:               {label: "Exit cap rate",             group: "EXIT",         type: "number",  fmt: "%",  min: 0.04,    max: 0.15,    step: 0.0025},
   sale_title_fee_pct:          {label: "Sale title fee %",          group: "EXIT",         type: "number",  fmt: "%",  min: 0,       max: 0.05,    step: 0.0025},
+
+  // LEGAL — fields the OA / PSA / PN / loan generators draw from (Phase 7)
+  llc_formation_state:         {label: "LLC formation state",       group: "LEGAL",        type: "select",
+                                options: ["TX","UT","DE","NV","WY","CO","CA","FL","NY","AZ","NM","ID","Other"],
+                                hint: "State the LLC is organized in. Texas + Utah are John Able's typical."},
+  llc_registered_agent:        {label: "Registered agent",          group: "LEGAL",        type: "string",
+                                hint: "Required for state filing; usually a service like CT Corp or the operator."},
+  llc_principal_office:        {label: "LLC principal office",      group: "LEGAL",        type: "string",
+                                hint: "Defaults to property address; override if the LLC uses a different mailing address."},
+  lender_legal_name:           {label: "Lender legal name",         group: "LEGAL",        type: "string",
+                                hint: "Full legal name as it appears on the loan docs (e.g., 'Mountain America FCU')."},
+  lender_address:              {label: "Lender address",            group: "LEGAL",        type: "string"},
+  waterfall_preferred_return_pct: {label: "Preferred return %",     group: "LEGAL",        type: "number", fmt: "%",
+                                   min: 0, max: 0.20, step: 0.005,
+                                   hint: "Pref hurdle that gets paid first before promote splits (typical 6–8%)."},
+  waterfall_roc_first:         {label: "Return of capital first?",  group: "LEGAL",        type: "boolean",
+                                hint: "true = full ROC before any promote split. Standard for most JV operating agreements."},
 };
 
 // ============================================================
@@ -2550,13 +2567,22 @@ const DEFAULT_TEMPLATE = {
     sale_title_fee_pct:       0.01,
 
     em_allocation_mode:       "dedicated",
+
+    // Phase 6 — LEGAL defaults
+    llc_formation_state:      "UT",
+    llc_registered_agent:     "",
+    llc_principal_office:     "",
+    lender_legal_name:        "",
+    lender_address:           "",
+    waterfall_preferred_return_pct: 0.08,
+    waterfall_roc_first:      true,
   },
   group_totals: {},
   team_seed: [
-    {name: "",  contribution: 0, ownership_pct: 0, equal_lock_group: null, is_auto_deduct: false, notes: ""},
-    {name: "",  contribution: 0, ownership_pct: 0, equal_lock_group: null, is_auto_deduct: false, notes: ""},
-    {name: "",  contribution: 0, ownership_pct: 0, equal_lock_group: null, is_auto_deduct: false, notes: ""},
-    {name: "",  contribution: 0, ownership_pct: 0, equal_lock_group: null, is_auto_deduct: false, notes: ""},
+    {name: "",  contribution: 0, ownership_pct: 0, equal_lock_group: null, is_auto_deduct: false, is_manager: false, notes: ""},
+    {name: "",  contribution: 0, ownership_pct: 0, equal_lock_group: null, is_auto_deduct: false, is_manager: false, notes: ""},
+    {name: "",  contribution: 0, ownership_pct: 0, equal_lock_group: null, is_auto_deduct: false, is_manager: false, notes: ""},
+    {name: "",  contribution: 0, ownership_pct: 0, equal_lock_group: null, is_auto_deduct: false, is_manager: false, notes: ""},
   ],
   questions_seed: [],
   meta: {
@@ -2613,13 +2639,22 @@ const MOAB_EARLY_V1_DATA = {
 
     em_allocation_mode:       "dedicated",
 
+    // Phase 6 — LEGAL defaults (UT-formed, John Able typical)
+    llc_formation_state:      "UT",
+    llc_registered_agent:     "",
+    llc_principal_office:     "805 N Main St, Moab, UT 84532",
+    lender_legal_name:        "",
+    lender_address:           "",
+    waterfall_preferred_return_pct: 0.08,
+    waterfall_roc_first:      true,
+
     team_members: [
-      {name: "John A",            contribution: 70000, ownership_pct: 0.14, equal_lock_group: 1, is_auto_deduct: false, notes: ""},
-      {name: "Nell",              contribution: 70000, ownership_pct: 0.14, equal_lock_group: 1, is_auto_deduct: false, notes: ""},
-      {name: "John C",            contribution: 70000, ownership_pct: 0.14, equal_lock_group: 1, is_auto_deduct: false, notes: ""},
-      {name: "Steve",             contribution: 70000, ownership_pct: 0.14, equal_lock_group: 1, is_auto_deduct: false, notes: ""},
+      {name: "John A",            contribution: 70000, ownership_pct: 0.14, equal_lock_group: 1, is_auto_deduct: false, is_manager: false, notes: ""},
+      {name: "Nell",              contribution: 70000, ownership_pct: 0.14, equal_lock_group: 1, is_auto_deduct: false, is_manager: false, notes: ""},
+      {name: "John C",            contribution: 70000, ownership_pct: 0.14, equal_lock_group: 1, is_auto_deduct: false, is_manager: false, notes: ""},
+      {name: "Steve",             contribution: 70000, ownership_pct: 0.14, equal_lock_group: 1, is_auto_deduct: false, is_manager: false, notes: ""},
       {name: "Earnest Money",     contribution: 20000, ownership_pct: 0.04, equal_lock_group: null, is_auto_deduct: false, notes: "Dedicated EM slot"},
-      {name: "John E (operator)", contribution: 0,     ownership_pct: 0.40, equal_lock_group: null, is_auto_deduct: true,  notes: "Auto-deduct: 100% − sum(others)"},
+      {name: "John E (operator)", contribution: 0,     ownership_pct: 0.40, equal_lock_group: null, is_auto_deduct: true,  is_manager: true, notes: "Auto-deduct: 100% − sum(others). Sole Manager."},
     ],
     group_totals: { "1": 0.56 },        // 4 members × 14% each in Group 1
     questions: [
@@ -4617,7 +4652,7 @@ function renderInputs() {
   //   RIGHT column → LOAN + OPERATING + EXIT
   // Mobile collapses both into a single stacked column via CSS.
   const LEFT_GROUPS  = ["DEAL META", "PURCHASE"];
-  const RIGHT_GROUPS = ["LOAN", "OPERATING", "EXIT"];
+  const RIGHT_GROUPS = ["LOAN", "OPERATING", "EXIT", "LEGAL"];
   const wrap = el("div", {className: "inputs-2col"});
   const colLeft  = el("div", {className: "inputs-col inputs-col-left"});
   const colRight = el("div", {className: "inputs-col inputs-col-right"});
