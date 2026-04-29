@@ -2199,7 +2199,7 @@
       <span class="brand">ABCOapp</span>
       <span class="deal-name" id="dealNameDisplay">Moab Early — 805 N Main</span>
       <div class="actions actions-right">
-        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v2-260428-1510 (P8)</span>
+        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v2-260428-1525 (P9)</span>
         <button id="feedbackBtn" class="feedback-icon" data-tip="Q & A / Feedback (questions log)">F</button>
         <button id="helpBtn" class="help-icon" data-tip="How to use this app">?</button>
       </div>
@@ -3746,6 +3746,41 @@ async function _renderPaymentCard(host, payment_id) {
 async function _renderEventCard(host, event_id) {
   host.appendChild(el("h3", null, "Event #" + event_id));
   host.appendChild(el("p", {className: "kv-hint"}, "Event card body lands in Phase 4."));
+}
+
+// Phase 9 — hash route resolver. Idempotent; called on init + hashchange.
+async function applyHashRoute(hash) {
+  if (!hash) return;
+  // tab-only (v1)
+  if (document.querySelector(`section[data-tab="${hash}"]`)) {
+    activeTab = hash;
+    return;
+  }
+  const parts = hash.split("/");
+  if (parts[0] === "deal" && parts[1]) {
+    // Load that deal's latest version
+    try {
+      const all = await dbAll("versions");
+      const versionsForDeal = all.filter(v => v.deal_id === parts[1])
+                                  .sort((a,b) => (b.saved_at||"").localeCompare(a.saved_at||""));
+      if (versionsForDeal.length > 0) {
+        await loadVersion(versionsForDeal[0].version_id);
+        if (parts[2] && document.querySelector(`section[data-tab="${parts[2]}"]`)) {
+          activeTab = parts[2];
+          renderActiveTab();
+        }
+      } else { toast("Deal not found: " + parts[1].slice(0,8)); }
+    } catch (e) { console.warn("hash route deal failed:", e); }
+    return;
+  }
+  if (parts[0] === "contact" && parts[1]) {
+    openContactCard(parts[1]);
+    return;
+  }
+  if (parts[0] === "payment" && parts[1]) {
+    renderCard("payment", parts[1], "rail");
+    return;
+  }
 }
 
 function logEdit(entry) {
@@ -8765,11 +8800,15 @@ async function init() {
   bindUI();
   refreshDealName();
 
-  // Restore tab from hash
-  const hash = location.hash.slice(1);
-  if (hash && document.querySelector(`section[data-tab="${hash}"]`)) {
-    activeTab = hash;
-  }
+  // Phase 9 — hash routing. Supported formats:
+  //   #<tab>                          → switch tab (v1 behavior, preserved)
+  //   #deal/<deal_id>                 → load deal (latest version)
+  //   #deal/<deal_id>/<tab>           → load deal + switch to tab
+  //   #contact/<contact_id>           → open ContactCard in right rail
+  //   #payment/<payment_id>           → open PaymentCard in right rail
+  await applyHashRoute(location.hash.slice(1));
+  // Re-route on every hashchange so paste-link nav works without reload.
+  window.addEventListener("hashchange", () => applyHashRoute(location.hash.slice(1)));
   renderActiveTab();
   bindAddressAutocompleteForActiveTab();
   updateUndoRedoUI();
