@@ -2029,7 +2029,7 @@
       <span class="brand">ABCOapp</span>
       <span class="deal-name" id="dealNameDisplay">Moab Early — 805 N Main</span>
       <div class="actions actions-right">
-        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v2-260428-1200 (P1)</span>
+        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v2-260428-1230 (P2)</span>
         <button id="feedbackBtn" class="feedback-icon" data-tip="Q & A / Feedback (questions log)">F</button>
         <button id="helpBtn" class="help-icon" data-tip="How to use this app">?</button>
       </div>
@@ -3068,7 +3068,7 @@ function updateUndoRedoUI() {
 // ============================================================
 
 const DB_NAME = "moab_early_app";
-const DB_VERSION = 2;       /* bumped 260427-2335 — new "edit_log" store */
+const DB_VERSION = 4;       /* bumped 260428-1215 — v2 P2: contacts/deals/payments/events */
 let db = null;
 
 function openDB() {
@@ -3087,6 +3087,42 @@ function openDB() {
         log.createIndex("by_deal", "deal_id", {unique: false});
         log.createIndex("by_ts",   "timestamp", {unique: false});
       }
+      // ---- v2 Phase 2 stores (DB_VERSION 4) ------------------------------
+      // contacts — every party (investor, lender, attorney, title rep,
+      //  property manager). Cards reference by contact_id.
+      if (!_db.objectStoreNames.contains("contacts")) {
+        const c = _db.createObjectStore("contacts", {keyPath: "contact_id"});
+        c.createIndex("by_name", "name", {unique: false});
+        c.createIndex("by_role", "role", {unique: false});
+      }
+      // deals — explicit deal record, separate from versions snapshots. Holds
+      //  parties (contact_ids + role) and the working/active flag.
+      if (!_db.objectStoreNames.contains("deals")) {
+        const d = _db.createObjectStore("deals", {keyPath: "deal_id"});
+        d.createIndex("by_code", "deal_code", {unique: false});
+        d.createIndex("by_working", "working", {unique: false});
+      }
+      // payments — every expected/received money flow tied to a deal +
+      //  contact. type ∈ investor_inflow|distribution|down_payment|buyout
+      //  (rent/bills/insurance deliberately NOT here per Principle #31).
+      if (!_db.objectStoreNames.contains("payments")) {
+        const p = _db.createObjectStore("payments", {keyPath: "payment_id", autoIncrement: true});
+        p.createIndex("by_deal",    "deal_id", {unique: false});
+        p.createIndex("by_contact", "contact_id", {unique: false});
+        p.createIndex("by_status",  "status", {unique: false});
+        p.createIndex("by_due",     "due_date", {unique: false});
+      }
+      // events — the Almanac. Material events only (stage changes, doc
+      //  generated/sent/signed, payment lifecycle, communications, close
+      //  /sell/refi). NOT individual setField keystrokes — those go to
+      //  edit_log (hidden audit). Anti-paper-whip per Principle #21.
+      if (!_db.objectStoreNames.contains("events")) {
+        const e = _db.createObjectStore("events", {keyPath: "event_id", autoIncrement: true});
+        e.createIndex("by_deal",    "deal_id", {unique: false});
+        e.createIndex("by_contact", "actor_contact_id", {unique: false});
+        e.createIndex("by_type",    "type", {unique: false});
+        e.createIndex("by_ts",      "occurred_at", {unique: false});
+      }
     };
     r.onsuccess = (e) => { db = e.target.result; resolve(db); };
     r.onerror = (e) => reject(e);
@@ -3104,6 +3140,255 @@ function openDB() {
 //   before     — pre-mutation value
 //   after      — post-mutation value
 //   description (optional) — human-readable summary
+// ============================================================
+// v2 Phase 2 — relational store helpers + migration + Card dispatcher
+// ============================================================
+
+// ----- CONTACTS -----
+// Stable contact_id from a slug of the name so re-running migration
+// doesn't duplicate (idempotent). Format: c_{slug}_{4charSuffix}.
+function contactIdFromName(name, role) {
+  const slug = String(name || "anon").toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24);
+  const tag = (role || "x").slice(0, 3).toLowerCase();
+  return "c_" + (slug || "anon") + "_" + tag;
+}
+async function upsertContact({contact_id, name, role, email, phone, linkedin_url, notes}) {
+  if (!db) return null;
+  const id = contact_id || contactIdFromName(name, role);
+  const now = new Date().toISOString();
+  let existing = null;
+  try { existing = await dbGet("contacts", id); } catch (e) {}
+  const merged = Object.assign(
+    {contact_id: id, created_at: now},
+    existing || {},
+    {name: name, role: role || (existing && existing.role) || "investor",
+     email: email || (existing && existing.email) || "",
+     phone: phone || (existing && existing.phone) || "",
+     linkedin_url: linkedin_url || (existing && existing.linkedin_url) || "",
+     notes: notes || (existing && existing.notes) || "",
+     updated_at: now}
+  );
+  await dbPut("contacts", merged);
+  return merged;
+}
+
+// ----- DEALS -----
+async function upsertDeal({deal_id, latest_version_id, deal_code, deal_name, working, parties}) {
+  if (!db || !deal_id) return null;
+  const now = new Date().toISOString();
+  let existing = null;
+  try { existing = await dbGet("deals", deal_id); } catch (e) {}
+  const merged = Object.assign(
+    {deal_id: deal_id, created_at: now, parties: []},
+    existing || {},
+    {latest_version_id: latest_version_id || (existing && existing.latest_version_id) || null,
+     deal_code:         deal_code         || (existing && existing.deal_code)         || null,
+     deal_name:         deal_name         || (existing && existing.deal_name)         || "Untitled",
+     working:           (working === undefined ? (existing && existing.working) || false : !!working),
+     parties:           parties || (existing && existing.parties) || [],
+     updated_at: now}
+  );
+  await dbPut("deals", merged);
+  return merged;
+}
+
+// ----- PAYMENTS -----
+async function addPayment(p) {
+  if (!db) return null;
+  const now = new Date().toISOString();
+  const row = Object.assign({status: "expected", direction: "in", method: "wire",
+                              created_at: now}, p);
+  const tx = db.transaction("payments", "readwrite");
+  return new Promise((resolve, reject) => {
+    const r = tx.objectStore("payments").add(row);
+    r.onsuccess = (e) => { row.payment_id = e.target.result; resolve(row); };
+    r.onerror = (e) => reject(e);
+  });
+}
+async function listPaymentsByDeal(deal_id) {
+  if (!db) return [];
+  const tx = db.transaction("payments", "readonly");
+  const idx = tx.objectStore("payments").index("by_deal");
+  return new Promise((resolve, reject) => {
+    const r = idx.getAll(deal_id);
+    r.onsuccess = () => resolve(r.result || []);
+    r.onerror = (e) => reject(e);
+  });
+}
+
+// ----- EVENTS (Almanac) -----
+async function emitEvent({deal_id, type, occurred_at, actor_contact_id, doc_ref, payment_ref, summary, payload}) {
+  if (!db) return null;
+  const row = {
+    deal_id: deal_id || (state && state.deal_id) || null,
+    type: type, occurred_at: occurred_at || new Date().toISOString(),
+    actor_contact_id: actor_contact_id || null,
+    doc_ref: doc_ref || null, payment_ref: payment_ref || null,
+    summary: summary || "", payload: payload || null,
+    created_at: new Date().toISOString(),
+  };
+  const tx = db.transaction("events", "readwrite");
+  return new Promise((resolve, reject) => {
+    const r = tx.objectStore("events").add(row);
+    r.onsuccess = (e) => { row.event_id = e.target.result; resolve(row); };
+    r.onerror = (e) => reject(e);
+  });
+}
+async function listEventsByDeal(deal_id) {
+  if (!db) return [];
+  const tx = db.transaction("events", "readonly");
+  const idx = tx.objectStore("events").index("by_deal");
+  return new Promise((resolve, reject) => {
+    const r = idx.getAll(deal_id);
+    r.onsuccess = () => resolve((r.result || []).sort((a,b) => (b.occurred_at||"").localeCompare(a.occurred_at||"")));
+    r.onerror = (e) => reject(e);
+  });
+}
+
+// ----- ONE-SHOT MIGRATION (runs in init after schema upgrade) -----
+// Walks every saved version + the active state and seeds contacts + deals.
+// Idempotent: contactId is a deterministic slug, deal already keyed by deal_id.
+async function migrateRelationalStores() {
+  if (!db) return;
+  let touched = 0;
+  try {
+    const versions = await dbAll("versions");
+    const dealIdToParties = {};       // accumulate unique parties per deal_id
+    const contactSeen = {};
+
+    for (const v of versions) {
+      const s = v.state || {};
+      const did = v.deal_id || s.deal_id;
+      if (!did) continue;
+
+      // Seed contacts from team_members
+      (s.team_members || []).forEach(m => {
+        const nm = (m.name || "").trim();
+        if (!nm) return;
+        const cid = contactIdFromName(nm, "investor");
+        if (!contactSeen[cid]) {
+          contactSeen[cid] = {name: nm, role: m.is_auto_deduct ? "operator" : "investor"};
+        }
+        if (!dealIdToParties[did]) dealIdToParties[did] = [];
+        if (!dealIdToParties[did].some(p => p.contact_id === cid)) {
+          dealIdToParties[did].push({contact_id: cid, role: contactSeen[cid].role});
+        }
+      });
+
+      // Seed contact for deal contact_name / contact_email / contact_phone
+      if (s.contact_name) {
+        const cid = contactIdFromName(s.contact_name, "primary");
+        if (!contactSeen[cid]) {
+          contactSeen[cid] = {name: s.contact_name, role: "primary",
+                              email: s.contact_email, phone: s.contact_phone};
+        }
+        if (!dealIdToParties[did]) dealIdToParties[did] = [];
+        if (!dealIdToParties[did].some(p => p.contact_id === cid)) {
+          dealIdToParties[did].push({contact_id: cid, role: "primary"});
+        }
+      }
+
+      // Upsert deal row (keep latest version pointer per deal_id by saved_at)
+      try {
+        const existing = await dbGet("deals", did);
+        const isNewer = !existing || (v.saved_at || "") > (existing.latest_saved_at || "");
+        if (isNewer || !existing) {
+          await upsertDeal({
+            deal_id: did,
+            latest_version_id: v.version_id,
+            deal_code: s.deal_code,
+            deal_name: s.deal_name,
+            working: existing ? existing.working : false,
+            parties: dealIdToParties[did] || [],
+          });
+          // Stash latest_saved_at separately for the next-newer check
+          const refreshed = await dbGet("deals", did);
+          if (refreshed) { refreshed.latest_saved_at = v.saved_at; await dbPut("deals", refreshed); }
+        }
+      } catch (e) { console.warn("migrate deal", did, e); }
+    }
+    // Now write all unique contacts
+    for (const cid of Object.keys(contactSeen)) {
+      try {
+        await upsertContact(Object.assign({contact_id: cid}, contactSeen[cid]));
+        touched++;
+      } catch (e) { console.warn("migrate contact", cid, e); }
+    }
+    // Mark the currently-active deal as the working deal if none flagged yet
+    const allDeals = await dbAll("deals");
+    const anyWorking = allDeals.some(d => d.working);
+    if (!anyWorking && state && state.deal_id) {
+      try {
+        const d = await dbGet("deals", state.deal_id);
+        if (d) { d.working = true; await dbPut("deals", d); }
+      } catch (e) {}
+    }
+    if (touched > 0) console.info("v2 migrate: seeded", touched, "contacts");
+  } catch (e) {
+    console.warn("migrateRelationalStores skipped:", e);
+  }
+}
+
+// ----- CARD DISPATCHER -----
+// Single entry point for rendering any card (deal/contact/payment/event)
+// in any mode (modal/inline/rail). Phases 3-7 fill in the type-specific
+// renderers; Phase 2 just establishes the contract + the right-rail slot.
+async function renderCard(type, id, mode) {
+  mode = mode || "rail";
+  const target = (mode === "rail") ? document.getElementById("rightRailBody") : null;
+  if (mode === "rail" && !target) return;
+
+  let host;
+  if (mode === "rail") {
+    target.innerHTML = "";
+    host = el("div", {className: "card card-" + type});
+    target.appendChild(host);
+  } else if (mode === "modal") {
+    // Phase 3+ wires a real modal; for now log + fallback to rail
+    return renderCard(type, id, "rail");
+  } else {
+    host = el("div", {className: "card card-" + type});
+  }
+
+  switch (type) {
+    case "deal":     await _renderDealCard(host, id);    break;
+    case "contact":  await _renderContactCard(host, id); break;
+    case "payment":  await _renderPaymentCard(host, id); break;
+    case "event":    await _renderEventCard(host, id);   break;
+    default:
+      host.appendChild(el("p", {className: "kv-hint"}, "Unknown card type: " + type));
+  }
+  return host;
+}
+
+// Phase 2 stub bodies — Phases 3-7 enrich each.
+async function _renderDealCard(host, deal_id) {
+  let d = null; try { d = await dbGet("deals", deal_id); } catch (e) {}
+  if (!d) { host.appendChild(el("p", {className: "kv-hint"}, "Deal not found.")); return; }
+  host.appendChild(el("h3", null, d.deal_name + (d.deal_code ? " " + d.deal_code.toUpperCase() : "")));
+  host.appendChild(el("p", {className: "kv-hint"},
+    (d.parties || []).length + " parties · " + (d.working ? "WORKING DEAL" : "saved")));
+}
+async function _renderContactCard(host, contact_id) {
+  let c = null; try { c = await dbGet("contacts", contact_id); } catch (e) {}
+  if (!c) { host.appendChild(el("p", {className: "kv-hint"}, "Contact not found.")); return; }
+  host.appendChild(el("h3", null, c.name));
+  if (c.role)  host.appendChild(el("p", {className: "kv-hint"}, "Role: " + c.role));
+  if (c.email) host.appendChild(el("p", null, "📧 " + c.email));
+  if (c.phone) host.appendChild(el("p", null, "📞 " + c.phone));
+  host.appendChild(el("p", {className: "kv-hint", style:"margin-top:10px"},
+    "Phase 5 expands this card with payments, threads, signature history, and deal-involvement list."));
+}
+async function _renderPaymentCard(host, payment_id) {
+  host.appendChild(el("h3", null, "Payment #" + payment_id));
+  host.appendChild(el("p", {className: "kv-hint"}, "Payment card body lands in Phase 3."));
+}
+async function _renderEventCard(host, event_id) {
+  host.appendChild(el("h3", null, "Event #" + event_id));
+  host.appendChild(el("p", {className: "kv-hint"}, "Event card body lands in Phase 4."));
+}
+
 function logEdit(entry) {
   if (!db) return;     // pre-init or no IndexedDB; skip silently
   try {
@@ -7378,6 +7663,9 @@ async function init() {
   renderActiveTab();
   bindAddressAutocompleteForActiveTab();
   updateUndoRedoUI();
+  // Phase 2 of v2 — migrate existing versions into contacts/deals stores.
+  // Idempotent. Touches contacts/deals only; versions/state untouched.
+  await migrateRelationalStores();
   // Phase 1 of v2 — populate the desktop left rail (no-op visually on mobile).
   renderLeftRail();
   renderRightRail();   // sets the empty-state hint
