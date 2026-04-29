@@ -1451,6 +1451,45 @@
   .almanac-time { color: var(--gray-label); font-size: 11px; }
   .almanac-summary { margin: 3px 0 0; font-size: 13px; color: #333; }
 
+  /* ---------- DOC GENERATOR (Phase 7) ---------- */
+  .doc-generator {
+    background: #FFF;
+    border: 1px solid var(--gray-border);
+    border-radius: 4px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .doc-generator h3 { margin-top: 0; }
+  .doc-tpl-card {
+    border: 1px solid var(--gray-border);
+    border-radius: 4px;
+    padding: 10px 12px;
+    margin-top: 10px;
+    background: #FAFBFC;
+  }
+  .doc-tpl-card h4 { margin: 0 0 4px; color: var(--navy); font-size: 14px; }
+  .doc-tpl-actions { margin-top: 8px; display: flex; gap: 8px; }
+  .doc-event-list { list-style: none; padding: 0; margin: 8px 0; }
+  .doc-event-list li {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--gray-border);
+    font-size: 12px;
+  }
+  .doc-event-list li strong { font-family: ui-monospace, "SF Mono", monospace; }
+  .doc-status-tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 10px;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    margin-left: 8px;
+  }
+  .doc-status-needs_review { background: #FFE5E5; color: #8B0000; border: 1px solid #C40000; }
+  .doc-status-reviewed     { background: #E8F2E8; color: #2A6B1A; border: 1px solid #88B04B; }
+  .doc-status-final        { background: var(--navy); color: #FFF; }
+
   /* ---------- DOCS TAB ---------- */
   .docs-toolbar {
     display: flex;
@@ -2154,7 +2193,7 @@
       <span class="brand">ABCOapp</span>
       <span class="deal-name" id="dealNameDisplay">Moab Early — 805 N Main</span>
       <div class="actions actions-right">
-        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v2-260428-1410 (P6)</span>
+        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v2-260428-1450 (P7)</span>
         <button id="feedbackBtn" class="feedback-icon" data-tip="Q & A / Feedback (questions log)">F</button>
         <button id="helpBtn" class="help-icon" data-tip="How to use this app">?</button>
       </div>
@@ -5627,6 +5666,424 @@ function yearNLabel() {
 // generate/edit/save flow is Phase 7+. Pre-fills doc names with deal
 // context so it feels real instead of empty.
 // =============================================================
+// =============================================================
+// v2 Phase 7 — DOC GENERATOR + REVIEW GATE (Principle #32)
+// =============================================================
+
+// Templates are HTML with [bracketed.placeholders]. resolveDocTpl walks
+// the template, substitutes from current state + party lookups, returns
+// final HTML. User downloads .html — opens in Word with one click for
+// .docx conversion. (Real .docx output is post-MVP wishlist W4.)
+//
+// Every generated doc carries the THREE-LAYER REVIEW GATE:
+//   (a) Filename: ..._NEEDSREVIEW.html
+//   (b) Red header block at top of body
+//   (c) Almanac event with review_status = "needs_review"
+//
+// Auto-strip on "Mark Reviewed" is wishlist W1.
+
+const REVIEW_GATE_HTML =
+  '<div style="background:#FFE5E5;border:2px solid #C40000;color:#8B0000;' +
+  'padding:16px 20px;font-family:sans-serif;font-size:14px;font-weight:700;' +
+  'margin-bottom:24px;border-radius:4px">' +
+  '⚠ NEEDS REVIEW — DO NOT SEND TO COUNTERPARTY UNTIL THIS BLOCK IS REMOVED. ' +
+  'See Principle #32 of the project rules. The reviewer should delete this ' +
+  'paragraph (and the NEEDSREVIEW suffix in the filename) before forwarding.' +
+  '</div>';
+
+const DOC_TEMPLATES = {
+  llc_oa: {
+    type_code: "OA",
+    name: "LLC Operating Agreement (SPE-style, Katy West Belt seed)",
+    description: "Single Purpose Entity LLC operating agreement. Patterned on John Able's Katy West Belt LLC. Parameterizes formation state, members, contributions, ownership %, manager, lender, principal office, distribution waterfall.",
+    needs_fields: ["llc_formation_state", "llc_registered_agent", "llc_principal_office",
+                   "lender_legal_name", "waterfall_preferred_return_pct"],
+    body: function(s, c) {
+      const dealName = s.deal_name || "[deal name]";
+      const llcName = dealName + ", LLC";
+      const stateName = ({
+        TX:"Texas",UT:"Utah",DE:"Delaware",NV:"Nevada",WY:"Wyoming",CO:"Colorado",
+        CA:"California",FL:"Florida",NY:"New York",AZ:"Arizona",NM:"New Mexico",
+        ID:"Idaho",Other:"[state of formation]"
+      })[s.llc_formation_state || "UT"] || s.llc_formation_state;
+      const principal = s.llc_principal_office || s.property_address_full || "[principal office]";
+      const agent = s.llc_registered_agent || "[registered agent]";
+      const lender = s.lender_legal_name || "[lender legal name]";
+      const propAddr = s.property_address_full || "[property address]";
+
+      const members = (s.team_members || []).filter(m => (m.name || "").trim());
+      const managers = members.filter(m => m.is_manager);
+      const memberRows = members.map((m, i) => {
+        const pct = (Number(m.ownership_pct) || 0) * 100;
+        return `<tr>
+          <td style="padding:4px 8px;border:1px solid #999">${i+1}</td>
+          <td style="padding:4px 8px;border:1px solid #999">${m.name}</td>
+          <td style="padding:4px 8px;border:1px solid #999;text-align:right">${fmt$(m.contribution || 0)}</td>
+          <td style="padding:4px 8px;border:1px solid #999;text-align:right">${pct.toFixed(2)}%</td>
+        </tr>`;
+      }).join("");
+
+      return `
+<h1 style="text-align:center">COMPANY AGREEMENT</h1>
+<h2 style="text-align:center">OF</h2>
+<h1 style="text-align:center">${llcName}</h1>
+
+<p style="font-size:11px;text-transform:uppercase">
+THE MEMBERSHIP INTERESTS DESCRIBED HEREIN HAVE NOT BEEN REGISTERED UNDER THE
+SECURITIES ACT OF 1933, THE ${stateName.toUpperCase()} SECURITIES ACT OR THE SECURITIES LAWS OF
+ANY OTHER STATE. SUCH MEMBERSHIP INTERESTS MAY NOT BE TRANSFERRED UNLESS
+REGISTERED UNDER APPLICABLE SECURITIES LAWS OR EXEMPT FROM SUCH REGISTRATION.
+</p>
+
+<h2>ARTICLE 1 — DEFINITIONS</h2>
+<p>"Company" means ${llcName}. "Property" means ${propAddr}. "Manager" means
+the person(s) designated below. "Members" means the persons identified in
+Schedule A. "Debt" means the indebtedness owed to ${lender}.</p>
+
+<h2>ARTICLE 2 — ORGANIZATION</h2>
+<p>The Company is organized under the laws of the State of ${stateName} on
+[date of formation]. Registered office: ${principal}. Registered agent:
+${agent}. Principal office: ${principal}.</p>
+
+<p><strong>Purpose.</strong> The sole purpose of the Company is to acquire,
+own, operate, and ultimately dispose of the Property described above, and
+to engage in activities incidental thereto. The Company shall not engage
+in any other business or activity.</p>
+
+<h2>ARTICLE 3 — MEMBERS &amp; CAPITAL CONTRIBUTIONS</h2>
+<p>The Members of the Company, their initial capital contributions, and
+their respective Membership Interests are as follows:</p>
+<table style="border-collapse:collapse;width:100%">
+  <thead>
+    <tr style="background:#1a237e;color:#FFF">
+      <th style="padding:6px 8px;border:1px solid #1a237e">#</th>
+      <th style="padding:6px 8px;border:1px solid #1a237e">Member</th>
+      <th style="padding:6px 8px;border:1px solid #1a237e">Initial Contribution</th>
+      <th style="padding:6px 8px;border:1px solid #1a237e">Membership Interest</th>
+    </tr>
+  </thead>
+  <tbody>${memberRows}</tbody>
+</table>
+
+<h2>ARTICLE 4 — MANAGEMENT</h2>
+<p>The Company shall be manager-managed. The Manager(s) shall be:
+<strong>${managers.length ? managers.map(m => m.name).join(", ") : "[Manager TBD]"}</strong>.
+The Manager has full authority to bind the Company in the ordinary course
+of business consistent with the Company's purpose.</p>
+
+<h2>ARTICLE 5 — DISTRIBUTIONS</h2>
+<p>Distributions of Available Cash shall be made in the following order:</p>
+<ol>
+  <li>First, to repay any unreturned capital contributions until each Member
+    has received a full return of capital${s.waterfall_roc_first === false ? " (concurrent with promote)" : ""};</li>
+  <li>Second, a preferred return of <strong>${((s.waterfall_preferred_return_pct || 0.08) * 100).toFixed(2)}%</strong>
+    per annum on unreturned capital;</li>
+  <li>Thereafter, in proportion to Membership Interests as set forth above.</li>
+</ol>
+
+<h2>ARTICLE 6 — SINGLE PURPOSE ENTITY COVENANTS</h2>
+<p>The Company shall maintain its existence as a single-purpose, bankruptcy-
+remote entity. Without limiting the generality of the foregoing, and so long
+as any portion of the Debt remains outstanding, the Company shall not:</p>
+<ol>
+  <li>engage in any business other than ownership and operation of the Property;</li>
+  <li>incur any debt other than the Debt and ordinary-course trade payables;</li>
+  <li>commingle its assets with the assets of any Member or affiliate;</li>
+  <li>fail to maintain separate books, records, and bank accounts;</li>
+  <li>guaranty the obligations of any other person.</li>
+</ol>
+<p><em>(Full SPE covenants — 30 numbered clauses — to be inserted from the
+Katy West Belt master template prior to execution. Reviewing counsel must
+verify all 30 covenants are present before finalizing.)</em></p>
+
+<h2>ARTICLE 7 — TRANSFER RESTRICTIONS</h2>
+<p>No Member may transfer all or any portion of its Membership Interest
+without (a) the prior written consent of the Manager, and (b) compliance
+with the right of first refusal provisions of this Agreement.</p>
+
+<h2>ARTICLE 8 — DISSOLUTION</h2>
+<p>The Company shall dissolve upon the sale of the Property and distribution
+of all proceeds, or upon the unanimous written consent of all Members.</p>
+
+<h2>SIGNATURE PAGE</h2>
+${members.map(m => `
+<div style="margin-top:48px">
+  <div>_________________________________________</div>
+  <div><strong>${m.name}</strong>, Member</div>
+  <div style="font-size:11px;color:#666">Date: ___________________________</div>
+</div>
+`).join("")}
+`;
+    }
+  },
+
+  promissory_note: {
+    type_code: "PN",
+    name: "Promissory Note (Texas-style, balloon)",
+    description: "Single-payment promissory note patterned on John Able's 2026 PN. Borrower / Lender pulled from Contacts. Default rate, maturity, principal templated.",
+    needs_fields: ["principal", "interest_rate", "maturity_date"],
+    extra_inputs: ["borrower_contact_id", "lender_contact_id", "principal_amount",
+                    "annual_interest_rate", "maturity_date", "default_interest_rate", "payment_terms"],
+    body: function(s, c, extra) {
+      extra = extra || {};
+      const date = new Date().toLocaleDateString("en-US", {year:"numeric",month:"long",day:"numeric"});
+      const borrower = extra.borrower_name || "[Borrower name]";
+      const borrowerAddr = extra.borrower_address || "[Borrower address]";
+      const lender = extra.lender_name || s.lender_legal_name || "[Lender name]";
+      const place = extra.lender_address || s.lender_address || "[Place for payment]";
+      const principal = extra.principal_amount || 0;
+      const rate = extra.annual_interest_rate || 10;
+      const maturity = extra.maturity_date || "[Maturity Date]";
+      const defaultRate = extra.default_interest_rate || 12;
+      const terms = extra.payment_terms || "All principal and interest come due at Maturity Date.";
+      return `
+<h1 style="text-align:center">Promissory Note</h1>
+<p><strong>Date:</strong> ${date}</p>
+<p><strong>Borrower:</strong> ${borrower}</p>
+<p><strong>Borrower's Mailing Address:</strong><br>${borrowerAddr.replace(/\n/g, "<br>")}</p>
+<p><strong>Lender:</strong> ${lender}</p>
+<p><strong>Place for Payment:</strong> ${place}</p>
+<p><strong>Principal Amount:</strong> ${fmt$(principal)}</p>
+<p><strong>Annual Interest Rate:</strong> ${rate}%
+   &nbsp;&nbsp;<strong>Maturity Date:</strong> ${maturity}</p>
+<p><strong>Annual Interest Rate on Matured, Unpaid Amounts:</strong> ${defaultRate}%</p>
+<p><strong>Terms of Payment (principal and interest):</strong> ${terms}</p>
+
+<h2 style="text-align:center">Promise to Pay</h2>
+<p>Borrower promises to pay to the order of Lender the Principal Amount
+plus interest at the Annual Interest Rate. This note is payable at the
+Place for Payment and according to the Terms of Payment. All unpaid
+amounts are due by the Maturity Date. If any amount is not paid either
+when due under the Terms of Payment or on acceleration of maturity,
+Borrower promises to pay any unpaid amount plus interest from the date
+the payment was due to the date of payment at the Annual Interest Rate
+on Matured, Unpaid Amounts.</p>
+
+<h2 style="text-align:center">Defaults and Remedies</h2>
+<p>A default exists under this note if (1) Borrower defaults in the
+payment of this note or in the performance of any obligation in any
+instrument securing or collateral to this note; (2) (a) Borrower or (b)
+any other person liable on any part of this note (an "Other Obligated
+Party") fails to timely pay or perform any obligation or covenant in
+any written agreement between Lender and Borrower; (3) any
+representation in this note is materially false when made; (4) a
+receiver is appointed for Borrower or any Collateral Security; (5)
+any Collateral Security is assigned for the benefit of creditors;
+(6) a bankruptcy proceeding is commenced by Borrower; (7) a bankruptcy
+proceeding is commenced against Borrower and not dismissed within
+sixty days; (8) Borrower is terminated or begins to wind up; or
+(9) any Collateral Security is impaired by loss, theft, damage, levy,
+or destruction unless promptly replaced.</p>
+<p>Upon the occurrence of a default under this note, Lender may declare
+the unpaid principal balance, earned interest, and any other amounts
+owed on the note immediately due, and may exercise all other rights
+and remedies available at law or in equity.</p>
+
+<h2 style="text-align:center">Waivers</h2>
+<p>Borrower waives, to the extent permitted by law, all (1) presentation
+for payment, (2) notice of intention to accelerate maturity, (3) notice
+of acceleration of maturity, and (4) protest.</p>
+
+<h2 style="text-align:center">Attorney's Fees</h2>
+<p>Borrower also promises to pay reasonable attorney's fees and court
+and other costs if an attorney is retained to collect or enforce the
+note. These expenses will bear interest from the date of advance at
+the Annual Interest Rate on Matured, Unpaid Amounts. Borrower will
+pay Lender these expenses and interest on demand at the Place for
+Payment. These expenses and interest will become part of the debt
+evidenced by the note and will be secured by any security for payment.</p>
+
+<h2 style="text-align:center">Usury Savings</h2>
+<p>Interest on the debt evidenced by this note will not exceed the
+maximum rate or amount of nonusurious interest that may be contracted
+for, taken, reserved, charged, or received under law. Any interest in
+excess of that maximum amount will be credited on the Principal
+Amount or, if the Principal Amount has been paid, refunded. This
+provision overrides any conflicting provisions in this note.</p>
+
+<h2 style="text-align:center">Other Clauses</h2>
+<p>Each Borrower is responsible for all obligations represented by this
+note. When the context requires, singular nouns and pronouns include
+the plural.</p>
+
+<div style="margin-top:64px">
+  <div>_________________________________________</div>
+  <div><strong>${borrower}</strong></div>
+  <div style="font-size:11px;color:#666">Date: ___________________________</div>
+</div>
+`;
+    }
+  }
+};
+
+// Doc-template default reviewer — persisted in localStorage so the user
+// can set it once per template type and have all future generations
+// auto-route to the same reviewer.
+function getDefaultReviewer(template_id) {
+  return localStorage.getItem("moab_default_reviewer_" + template_id) || "";
+}
+function setDefaultReviewer(template_id, contact_id) {
+  try { localStorage.setItem("moab_default_reviewer_" + template_id, contact_id || ""); }
+  catch (e) {}
+}
+
+// Generate a doc — returns {filename, html, type_code} but does NOT trigger
+// download (caller does that). Auto-emits the Almanac event.
+async function generateDoc(template_id, extra) {
+  const tpl = DOC_TEMPLATES[template_id];
+  if (!tpl) { toast("Unknown template: " + template_id); return null; }
+  const c = computed;
+  const bodyHtml = tpl.body(state, c, extra || {});
+  const fullHtml = `<!doctype html>
+<html><head><meta charset="utf-8">
+<title>${tpl.name} — ${state.deal_name || "Untitled"}</title>
+<style>
+  body { font-family: "Times New Roman", Georgia, serif; max-width: 7.5in; margin: 0.75in auto; line-height: 1.5; color: #000; }
+  h1 { font-size: 18px; margin: 24px 0 8px; }
+  h2 { font-size: 14px; margin: 18px 0 6px; }
+  p { margin: 6px 0; }
+</style>
+</head><body>
+${REVIEW_GATE_HTML}
+${bodyHtml}
+<hr style="margin-top:48px;border:none;border-top:1px solid #999">
+<div style="font-size:10px;color:#666;font-family:ui-monospace,monospace">
+ABCO METADATA · deal_id: ${state.deal_id} · deal_code: ${(state.deal_code || "").toUpperCase()} ·
+deal_name: ${state.deal_name} · generated: ${new Date().toISOString()} ·
+template: ${template_id} · review_status: needs_review
+</div>
+</body></html>`;
+  const stamp = new Date().toISOString().slice(0,16).replace(/[-T:]/g, "").replace(/(\d{8})(\d{4})/, "$1_$2");
+  const code = (state.deal_code || "").toUpperCase() || "XX";
+  const filename = `${stamp}_${tpl.type_code}_${code}_NEEDSREVIEW.html`;
+
+  // Auto-emit Almanac event
+  await emitEvent({
+    deal_id: state.deal_id, type: "doc_generated",
+    summary: tpl.name + " · " + filename,
+    payload: {template_id: template_id, filename: filename,
+              review_status: "needs_review",
+              reviewer_contact_id: extra && extra.reviewer_contact_id || getDefaultReviewer(template_id) || null}
+  });
+
+  return {filename: filename, html: fullHtml, type_code: tpl.type_code, template_id: template_id};
+}
+
+// Open the generator form for a template. MVP uses native prompts to keep
+// the build simple — wishlist is a proper modal with a structured form,
+// reviewer-picker dropdown from Contacts, voice-input "spirit" textarea,
+// etc. The fundamentals (review gate, default reviewer, Almanac event)
+// all work today.
+async function openDocGenForm(template_id) {
+  const tpl = DOC_TEMPLATES[template_id];
+  if (!tpl) return;
+
+  // PN needs extra inputs; OA pulls everything from state
+  let extra = {};
+  if (template_id === "promissory_note") {
+    // Borrower: pick from contacts or type
+    const allContacts = await dbAll("contacts");
+    const contactList = allContacts.map((c,i) => (i+1) + ". " + c.name + " (" + c.role + ")").join("\n");
+    const bAns = prompt("Borrower? Type a name or pick number:\n" + contactList, "");
+    if (bAns === null) return;
+    let bName = bAns, bAddr = "", bId = null;
+    const bNum = parseInt(bAns, 10);
+    if (!isNaN(bNum) && bNum >= 1 && bNum <= allContacts.length) {
+      const c = allContacts[bNum - 1];
+      bName = c.name; bAddr = c.address || ""; bId = c.contact_id;
+    }
+    if (!bAddr) bAddr = prompt("Borrower mailing address?", "") || "[Borrower address]";
+    extra.borrower_name = bName; extra.borrower_address = bAddr; extra.borrower_contact_id = bId;
+
+    const lAns = prompt("Lender? Type a name or pick number:\n" + contactList, "");
+    if (lAns === null) return;
+    let lName = lAns, lAddr = "", lId = null;
+    const lNum = parseInt(lAns, 10);
+    if (!isNaN(lNum) && lNum >= 1 && lNum <= allContacts.length) {
+      const c = allContacts[lNum - 1];
+      lName = c.name; lAddr = c.address || ""; lId = c.contact_id;
+    }
+    if (!lAddr) lAddr = prompt("Place for payment (lender address)?", state.lender_address || "") || "[Place for payment]";
+    extra.lender_name = lName; extra.lender_address = lAddr; extra.lender_contact_id = lId;
+
+    extra.principal_amount       = parseFloat(prompt("Principal amount? ($)", "35000") || "0");
+    extra.annual_interest_rate   = parseFloat(prompt("Annual interest rate? (%)", "10") || "10");
+    extra.maturity_date          = prompt("Maturity date? (e.g. 4/30/2027)", "") || "[Maturity Date]";
+    extra.default_interest_rate  = parseFloat(prompt("Default interest rate? (%)", "12") || "12");
+    extra.payment_terms          = prompt("Terms of payment?", "All principal and interest come due at Maturity Date.")
+                                    || "All principal and interest come due at Maturity Date.";
+  }
+
+  // Reviewer assignment — current default + ad-hoc override
+  const allContacts2 = await dbAll("contacts");
+  const defaultRev = getDefaultReviewer(template_id);
+  let reviewerId = defaultRev || null;
+  const useDefault = defaultRev && confirm(
+    "Send for review to default reviewer (" +
+    ((allContacts2.find(c => c.contact_id === defaultRev) || {}).name || "?") +
+    ")? Click Cancel to pick someone else."
+  );
+  if (!useDefault) {
+    const list = allContacts2.map((c,i) => (i+1) + ". " + c.name).join("\n");
+    const pick = prompt("Reviewer? Pick number, or leave blank to skip review-routing:\n" + list, "");
+    if (pick) {
+      const n = parseInt(pick, 10);
+      if (!isNaN(n) && n >= 1 && n <= allContacts2.length) {
+        reviewerId = allContacts2[n - 1].contact_id;
+        if (confirm("Make this the DEFAULT reviewer for all future " + tpl.type_code + " docs?")) {
+          setDefaultReviewer(template_id, reviewerId);
+        }
+      }
+    }
+  }
+  extra.reviewer_contact_id = reviewerId;
+
+  // Spirit notes (voice input wishlist W3 — text only for MVP)
+  extra.spirit_notes = prompt(
+    "Spirit-of-the-document notes for the reviewer (optional). " +
+    "Tells them what you were going for. (Voice input is wishlist W3.)",
+    ""
+  ) || "";
+
+  // Generate + download
+  const result = await generateDoc(template_id, extra);
+  if (!result) return;
+  downloadDocBlob(result.filename, result.html);
+  toast("Generated " + result.filename + " — review gate active");
+
+  // Offer Send-for-Review mailto if reviewer set
+  if (reviewerId) {
+    const c = allContacts2.find(c => c.contact_id === reviewerId);
+    if (c && c.email) {
+      const subj = encodeURIComponent("Review: " + tpl.name + " — " + state.deal_name);
+      const body = encodeURIComponent(
+        "Hi " + (c.name.split(" ")[0]) + ",\n\n" +
+        "Generated " + tpl.name + " for " + state.deal_name +
+        (state.deal_code ? " (" + state.deal_code.toUpperCase() + ")" : "") + ".\n\n" +
+        "File: " + result.filename + " (attached separately — Drive link forthcoming once Phase 9 hosted live-link is wired).\n\n" +
+        (extra.spirit_notes ? "Spirit notes: " + extra.spirit_notes + "\n\n" : "") +
+        "Reminder: file has NEEDSREVIEW in the name + a red header block at top. " +
+        "Strip both before forwarding to counterparty.\n\n— JE"
+      );
+      if (confirm("Open mail to " + c.name + " (" + c.email + ") with the review request?")) {
+        window.location.href = "mailto:" + c.email + "?subject=" + subj + "&body=" + body;
+        await emitEvent({deal_id: state.deal_id, type: "review_sent",
+                          actor_contact_id: reviewerId,
+                          summary: "Review request to " + c.name + " for " + result.filename});
+      }
+    }
+  }
+}
+
+function downloadDocBlob(filename, html) {
+  const blob = new Blob([html], {type: "text/html"});
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
+}
+
 const PLACEHOLDER_DOCS = [
   { name: "Letter of Intent",                stage: "Prospect Hot",   status: "Draft",   created: "2026-04-22", edited: "2026-04-26", who: "John Able + JE" },
   { name: "Purchase & Sale Agreement (PSA)", stage: "Under Contract", status: "Pending", created: "2026-04-25", edited: "2026-04-26", who: "John Able" },
@@ -5644,15 +6101,69 @@ const PLACEHOLDER_DOCS = [
 ];
 
 let _docsSort = "edited";   // edited | created | stage
-function renderDocs() {
+async function renderDocs() {
   const body = document.getElementById("docsBody");
   body.innerHTML = "";
 
-  // Toolbar: search + sort + new-doc
+  // ===== A. Generator panel — top of tab, replaces the +New Doc stub =====
+  const gen = el("div", {className: "doc-generator"});
+  gen.appendChild(el("h3", null, "Generate a doc"));
+  gen.appendChild(el("p", {className: "kv-hint"},
+    "Pick a template. Output is HTML you can open in Word with one click. " +
+    "Every generated doc is GATED FOR REVIEW (Principle #32) — file name has " +
+    "NEEDSREVIEW, body has a red header block, Almanac logs review_status."));
+  Object.keys(DOC_TEMPLATES).forEach(tid => {
+    const tpl = DOC_TEMPLATES[tid];
+    const card = el("div", {className: "doc-tpl-card"});
+    card.appendChild(el("h4", null, tpl.name));
+    card.appendChild(el("p", {className: "kv-hint"}, tpl.description));
+    const actRow = el("div", {className: "doc-tpl-actions"});
+    const genBtn = el("button", {className: "btn btn-primary"}, "Generate");
+    genBtn.addEventListener("click", () => openDocGenForm(tid));
+    actRow.appendChild(genBtn);
+    card.appendChild(actRow);
+    gen.appendChild(card);
+  });
+  body.appendChild(gen);
+
+  // ===== B. Recent generated + review queue =====
+  body.appendChild(el("h3", null, "Generated & under review"));
+  const events = state.deal_id ? await listEventsByDeal(state.deal_id) : [];
+  const docEvents = events.filter(e => e.type === "doc_generated").slice(0, 10);
+  if (docEvents.length === 0) {
+    body.appendChild(el("p", {className: "kv-hint"}, "Nothing generated yet for this deal."));
+  } else {
+    const ul = el("ul", {className: "doc-event-list"});
+    for (const ev of docEvents) {
+      const li = el("li");
+      const fname = (ev.payload && ev.payload.filename) || "—";
+      li.appendChild(el("strong", null, fname));
+      const status = (ev.payload && ev.payload.review_status) || "needs_review";
+      const tag = el("span", {className: "doc-status-tag doc-status-" + status}, status);
+      li.appendChild(tag);
+      li.appendChild(el("span", {className: "kv-hint"}, " · " + (ev.occurred_at || "").slice(0,16).replace("T"," ")));
+      // Reviewer indicator
+      if (ev.payload && ev.payload.reviewer_contact_id) {
+        try {
+          const c = await dbGet("contacts", ev.payload.reviewer_contact_id);
+          if (c) li.appendChild(el("span", {className: "kv-hint"}, " · reviewer: " + c.name));
+        } catch (e) {}
+      }
+      ul.appendChild(li);
+    }
+    body.appendChild(ul);
+    body.appendChild(el("p", {className: "kv-hint", style:"font-style:italic"},
+      "Wishlist W1: a 'Mark Reviewed' checkbox on each row that auto-strips NEEDSREVIEW from filename + removes the red header block."));
+  }
+
+  body.appendChild(el("h3", null, "Doc roadmap (placeholder library)"));
+  body.appendChild(el("p", {className: "kv-hint"},
+    "Other docs the app should generate as the deal progresses through stages — beyond this MVP. Pull request your priorities."));
+  // Placeholder doc-list table (existing roadmap)
+
   const tools = el("div", {className: "docs-toolbar"});
-  const search = el("input", {type: "search", placeholder: "Search docs (name, stage, who)…"});
+  const search = el("input", {type: "search", placeholder: "Search roadmap…"});
   search.disabled = true;
-  search.title = "Placeholder — search is Phase 7+";
   tools.appendChild(search);
   const sort = el("select", {className: "docs-sort"});
   [["edited", "Last edited"], ["created", "Created"], ["stage", "Deal stage"]].forEach(o => {
@@ -5663,10 +6174,6 @@ function renderDocs() {
   sort.addEventListener("change", () => { _docsSort = sort.value; renderActiveTab(); });
   tools.appendChild(el("label", null, "Sort: "));
   tools.appendChild(sort);
-  const newBtn = el("button", {className: "btn btn-primary"}, "+ New Doc");
-  newBtn.disabled = true;
-  newBtn.title = "Placeholder — generation flow Phase 7+";
-  tools.appendChild(newBtn);
   body.appendChild(tools);
 
   // Sort the placeholder list
