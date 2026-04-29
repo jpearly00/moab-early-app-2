@@ -1326,6 +1326,61 @@
     max-width: 280px;
   }
 
+  /* ---------- CARDS (Phase 2-5) ---------- */
+  .card { padding: 12px 14px; }
+  .card h3 {
+    margin: 0 0 4px;
+    color: var(--navy);
+    font-size: 16px;
+    border-bottom: 1px solid var(--gray-border);
+    padding-bottom: 6px;
+  }
+  .card-role {
+    display: inline-block;
+    background: rgba(0,0,0,0.06);
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 11px;
+    color: #444;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin: 4px 0 8px;
+  }
+  .card-methods { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; }
+  .card-method  {
+    color: var(--navy); text-decoration: none; font-size: 12px;
+    padding: 3px 0; border-bottom: 1px solid transparent;
+  }
+  .card-method:hover { border-bottom-color: var(--navy); }
+  .card-section-h {
+    margin: 14px 0 4px;
+    font-size: 11px;
+    color: var(--gray-label);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    border-top: 1px solid var(--gray-border);
+    padding-top: 8px;
+  }
+  .card-deal-list, .card-payment-list, .card-sig-list {
+    list-style: none; padding: 0; margin: 0;
+    font-size: 12px; line-height: 1.55;
+  }
+  .card-deal-list li, .card-payment-list li, .card-sig-list li {
+    padding: 3px 0;
+    border-bottom: 1px dashed var(--gray-border);
+  }
+  .card-working-tag {
+    background: #88B04B; color: #FFF; font-size: 9px;
+    padding: 1px 4px; border-radius: 2px; margin-left: 4px;
+    letter-spacing: 0.4px;
+  }
+  .card-pay-type { color: var(--navy); font-weight: 600; }
+  .card-pay-amt  { font-family: ui-monospace, "SF Mono", monospace; }
+
+  table.grid.contacts-table { width: 100%; }
+  .contact-name-cell:hover { background: var(--blue-hover); }
+
   /* ---------- PAYMENTS / ALMANAC / SUBTABS ---------- */
   .subtabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
   .subtab {
@@ -2099,7 +2154,7 @@
       <span class="brand">ABCOapp</span>
       <span class="deal-name" id="dealNameDisplay">Moab Early — 805 N Main</span>
       <div class="actions actions-right">
-        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v2-260428-1310 (P3+P4)</span>
+        <span class="build-stamp" id="buildStamp" title="Build version — confirms you have the latest code. Click to force a hard refresh that clears all caches.">v2-260428-1340 (P5)</span>
         <button id="feedbackBtn" class="feedback-icon" data-tip="Q & A / Feedback (questions log)">F</button>
         <button id="helpBtn" class="help-icon" data-tip="How to use this app">?</button>
       </div>
@@ -2148,6 +2203,7 @@
     <button data-tab="almanac">Almanac</button>
     <button data-tab="docs">Docs</button>
     <button data-tab="comms">Comms</button>
+    <button data-tab="contacts">Contacts</button>
   </nav>
 
   <main id="content">
@@ -2167,6 +2223,7 @@
     <section class="tab-content" data-tab="almanac"><h2>Almanac</h2><div id="almanacBody"></div></section>
     <section class="tab-content" data-tab="docs"><h2>Docs</h2><div id="docsBody"></div></section>
     <section class="tab-content" data-tab="comms"><h2>Comms</h2><div id="commsBody"></div></section>
+    <section class="tab-content" data-tab="contacts"><h2>Contacts</h2><div id="contactsBody"></div></section>
     <!-- Hidden render targets used by the modals (Sensitivity, Charts, Deals, Questions/Feedback) -->
     <section class="tab-content" data-tab="sensitivity" hidden><div id="sensBody"></div></section>
     <section class="tab-content" data-tab="charts" hidden><div id="chartsBody"></div></section>
@@ -3455,11 +3512,152 @@ async function _renderContactCard(host, contact_id) {
   let c = null; try { c = await dbGet("contacts", contact_id); } catch (e) {}
   if (!c) { host.appendChild(el("p", {className: "kv-hint"}, "Contact not found.")); return; }
   host.appendChild(el("h3", null, c.name));
-  if (c.role)  host.appendChild(el("p", {className: "kv-hint"}, "Role: " + c.role));
-  if (c.email) host.appendChild(el("p", null, "📧 " + c.email));
-  if (c.phone) host.appendChild(el("p", null, "📞 " + c.phone));
-  host.appendChild(el("p", {className: "kv-hint", style:"margin-top:10px"},
-    "Phase 5 expands this card with payments, threads, signature history, and deal-involvement list."));
+  if (c.role) host.appendChild(el("p", {className: "card-role"}, c.role));
+
+  // Contact methods + launchers (mailto / tel / sms / LinkedIn search)
+  const methods = el("div", {className: "card-methods"});
+  if (c.email) {
+    const a = el("a", {href: "mailto:" + c.email, target: "_blank", className: "card-method"}, "✉ " + c.email);
+    methods.appendChild(a);
+  }
+  if (c.phone) {
+    const a = el("a", {href: "tel:" + c.phone.replace(/[^\d+]/g,""), className: "card-method"}, "📞 " + c.phone);
+    methods.appendChild(a);
+    const s = el("a", {href: "sms:" + c.phone.replace(/[^\d+]/g,""), className: "card-method"}, "💬 SMS");
+    methods.appendChild(s);
+  }
+  const liQ = encodeURIComponent([c.name, c.email, c.phone].filter(x=>x).join(" "));
+  methods.appendChild(el("a", {
+    href: "https://www.linkedin.com/search/results/people/?keywords=" + liQ,
+    target: "_blank", className: "card-method"
+  }, "🔗 LinkedIn search"));
+  host.appendChild(methods);
+
+  // Deals involved in
+  const allDeals = await dbAll("deals");
+  const dealsForContact = allDeals.filter(d => (d.parties || []).some(p => p.contact_id === contact_id));
+  host.appendChild(el("h4", {className: "card-section-h"}, "Deals (" + dealsForContact.length + ")"));
+  if (dealsForContact.length === 0) {
+    host.appendChild(el("p", {className: "kv-hint"}, "Not on any deals yet."));
+  } else {
+    const ul = el("ul", {className: "card-deal-list"});
+    dealsForContact.forEach(d => {
+      const li = el("li");
+      const codeStr = d.deal_code ? " " + d.deal_code.toUpperCase() : "";
+      li.appendChild(el("strong", null, (d.deal_name || "Untitled") + codeStr));
+      if (d.working) li.appendChild(el("span", {className: "card-working-tag"}, " WORKING"));
+      const role = (d.parties.find(p => p.contact_id === contact_id) || {}).role || "?";
+      li.appendChild(el("span", {className: "kv-hint"}, " · " + role));
+      ul.appendChild(li);
+    });
+    host.appendChild(ul);
+  }
+
+  // Payments — across all deals for this contact
+  const allDealIds = dealsForContact.map(d => d.deal_id);
+  const allPayments = [];
+  for (const did of allDealIds) {
+    const ps = await listPaymentsByDeal(did);
+    ps.filter(p => p.contact_id === contact_id).forEach(p => allPayments.push(p));
+  }
+  host.appendChild(el("h4", {className: "card-section-h"}, "Payments (" + allPayments.length + ")"));
+  if (allPayments.length === 0) {
+    host.appendChild(el("p", {className: "kv-hint"}, "No payments yet."));
+  } else {
+    const totalIn  = allPayments.filter(p => p.direction === "in" && p.status === "received").reduce((a,p) => a + (Number(p.amount)||0), 0);
+    const totalOut = allPayments.filter(p => p.direction === "out" && p.status === "received").reduce((a,p) => a + (Number(p.amount)||0), 0);
+    host.appendChild(el("p", {className: "kv-hint"},
+      "In: " + fmt$(totalIn) + " · Out: " + fmt$(totalOut)));
+    const ul = el("ul", {className: "card-payment-list"});
+    allPayments.slice(0, 10).forEach(p => {
+      const li = el("li");
+      li.appendChild(el("span", {className: "card-pay-type"}, PAYMENT_TYPE_LABELS[p.type] || p.type));
+      li.appendChild(el("span", {className: "card-pay-amt"}, " " + fmt$(p.amount)));
+      li.appendChild(el("span", {className: "kv-hint"}, " · " + p.status));
+      ul.appendChild(li);
+    });
+    host.appendChild(ul);
+  }
+
+  // Threads — placeholder pulled from PLACEHOLDER_THREADS where partyId can
+  // match. (Phase 7+ wires real Gmail/Messages.)
+  host.appendChild(el("h4", {className: "card-section-h"}, "Threads"));
+  host.appendChild(el("p", {className: "kv-hint"},
+    "Email + SMS thread integration is Phase 9+ (Gmail OAuth required). Use Comms tab for the placeholder thread browser."));
+
+  // Signature history — events filtered by actor + type
+  const allEvents = [];
+  for (const did of allDealIds) {
+    const evs = await listEventsByDeal(did);
+    evs.filter(e => e.actor_contact_id === contact_id && (e.type === "doc_signed" || e.type === "doc_viewed")).forEach(e => allEvents.push(e));
+  }
+  host.appendChild(el("h4", {className: "card-section-h"}, "Signature history"));
+  if (allEvents.length === 0) {
+    host.appendChild(el("p", {className: "kv-hint"}, "No signed/viewed docs logged."));
+  } else {
+    const ul = el("ul", {className: "card-sig-list"});
+    allEvents.forEach(e => {
+      ul.appendChild(el("li", null, (e.occurred_at || "").slice(0,10) + " · " + e.summary));
+    });
+    host.appendChild(ul);
+  }
+}
+
+// Convenience helpers
+function openContactCard(contact_id) {
+  return renderCard("contact", contact_id, "rail");
+}
+async function renderContacts() {
+  const body = document.getElementById("contactsBody");
+  body.innerHTML = "";
+  const all = await dbAll("contacts");
+  body.appendChild(el("p", {className: "kv-hint"},
+    "Every party across every deal. Click any name to open the ContactCard in the detail rail."));
+  if (all.length === 0) {
+    body.appendChild(el("p", {className: "kv-hint", style:"padding:20px;text-align:center"},
+      "No contacts yet. Add team members to a deal — they'll appear here."));
+    return;
+  }
+  // Add new
+  const addBtn = el("button", {className: "btn btn-primary", style:"margin:10px 0"}, "+ New Contact");
+  addBtn.addEventListener("click", async () => {
+    const name = prompt("Name?", ""); if (!name) return;
+    const role = prompt("Role? (investor / lender / attorney / title / banker / property_mgr / other)", "investor") || "other";
+    const email = prompt("Email?", "") || "";
+    const phone = prompt("Phone?", "") || "";
+    await upsertContact({name: name, role: role, email: email, phone: phone});
+    toast("Contact added");
+    renderActiveTab();
+  });
+  body.appendChild(addBtn);
+
+  const tbl = el("table", {className: "grid contacts-table"});
+  tbl.appendChild(el("thead", null, el("tr", null, [
+    el("th", null, "Name"),
+    el("th", null, "Role"),
+    el("th", null, "Email"),
+    el("th", null, "Phone"),
+    el("th", null, "Deals"),
+  ])));
+  const tbody = el("tbody");
+  const allDeals = await dbAll("deals");
+  all.sort((a,b) => (a.name || "").localeCompare(b.name || "")).forEach(c => {
+    const tr = el("tr");
+    const dealCount = allDeals.filter(d => (d.parties || []).some(p => p.contact_id === c.contact_id)).length;
+    const nameTd = el("td", {className: "label contact-name-cell"}, c.name);
+    nameTd.style.cursor = "pointer";
+    nameTd.style.color  = "var(--navy)";
+    nameTd.style.fontWeight = "600";
+    nameTd.addEventListener("click", () => openContactCard(c.contact_id));
+    tr.appendChild(nameTd);
+    tr.appendChild(el("td", null, c.role || "—"));
+    tr.appendChild(el("td", null, c.email || "—"));
+    tr.appendChild(el("td", null, c.phone || "—"));
+    tr.appendChild(el("td", {className: "num"}, String(dealCount)));
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  body.appendChild(tbl);
 }
 async function _renderPaymentCard(host, payment_id) {
   host.appendChild(el("h3", null, "Payment #" + payment_id));
@@ -4137,6 +4335,7 @@ function renderActiveTab() {
     case "almanac":     renderAlmanac();     break;
     case "docs":        renderDocs();        break;
     case "comms":       renderComms();       break;
+    case "contacts":    renderContacts();    break;
     // legacy tab values — bounce back to summary if a stale hash points at a removed tab
     case "sensitivity":
     case "charts":
